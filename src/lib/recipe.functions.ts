@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ParsedRecipe } from "./recipe";
 import { hasRecipeCaption, isTikTokRecipeLink, TIKTOK_RECIPE_ACCESS_MESSAGE } from "./recipe-links";
 import { createVideoTextDecoder, VIDEO_RECIPE_PROMPT } from "./video";
+import { extractFacebookRecipe, FACEBOOK_RECIPE_ACCESS_MESSAGE, isFacebookRecipeLink } from "./facebook-recipe";
 export type { ParsedRecipe } from "./recipe";
 
 const Input = z.object({
@@ -101,6 +102,11 @@ async function textFromUrl(url: string): Promise<string> {
   });
   if (!r.ok) throw new Error(`Couldn't open that link (status ${r.status}). Try pasting the recipe text instead.`);
   const html = await r.text();
+  if (isFacebookRecipeLink(url) || isFacebookRecipeLink(r.url)) {
+    const completePost = extractFacebookRecipe(html);
+    if (!completePost) throw new Error(FACEBOOK_RECIPE_ACCESS_MESSAGE);
+    return completePost;
+  }
   const og = html.match(/<meta[^>]+(?:property|name)="(?:og:)?description"[^>]+content="([^"]*)"/i)?.[1] ?? "";
   return `${og}\n\n${stripHtml(html)}`.slice(0, 30000);
 }
