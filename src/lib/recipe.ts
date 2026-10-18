@@ -46,6 +46,7 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
     } else {
       group.others.push({ quantity: ing.quantity, unit: ing.unit });
     }
+    group.ing.optional = !!group.ing.optional || !!ing.optional;
     group.ing.nutrition = {
       kcal: group.ing.nutrition.kcal + ing.nutrition.kcal,
       protein: group.ing.nutrition.protein + ing.nutrition.protein,
@@ -53,6 +54,7 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
       fat: group.ing.nutrition.fat + ing.nutrition.fat,
       salt: addEstimate(group.ing.nutrition.salt, ing.nutrition.salt),
       freeSugar: addEstimate(group.ing.nutrition.freeSugar, ing.nutrition.freeSugar),
+      per100g: group.ing.nutrition.per100g ?? ing.nutrition.per100g ?? null,
     };
   }
   const extras: string[] = [];
