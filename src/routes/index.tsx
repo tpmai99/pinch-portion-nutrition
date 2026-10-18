@@ -56,20 +56,21 @@ function App() {
       </header>
 
       {stage === "import" && (
-        <ImportStep onParsed={(r) => { setRecipe(r); setChoice("yummy"); setPortions(r.servings); setStage("portions"); }} />
+        <ImportStep onParsed={(r) => { setRecipe(r); setChoice("yummy"); setPortions(r.servings); resetAdjustments(); setStage("portions"); }} />
       )}
       {stage === "portions" && recipe && (
         <PortionsStep recipe={recipe} portions={portions} setPortions={setPortions}
           onBack={() => setStage("import")} onNext={() => setStage("overview")} />
       )}
       {stage === "overview" && recipe && activeRecipe && (
-        <OverviewStep recipe={activeRecipe} choice={choice} onChoice={setChoice} original={recipe} portions={portions} onBack={() => setStage("portions")}
-          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode} />
+        <OverviewStep recipe={activeRecipe} choice={choice} onChoice={(c) => { setChoice(c); resetAdjustments(); }} original={recipe} portions={portions} onBack={() => setStage("portions")}
+          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode}
+          adjust={adjust} removed={removed} onAdjust={(i, m) => setAdjust((a) => ({ ...a, [i]: m }))} onRemove={(i, on) => setRemoved((s) => { const n = new Set(s); on ? n.add(i) : n.delete(i); return n; })} />
       )}
       {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
-      {shopOpen && activeRecipe && (
-        <ShopSheet recipe={activeRecipe} portions={portions} onClose={() => setShopOpen(false)}
+      {shopOpen && adjustedRecipe && (
+        <ShopSheet recipe={adjustedRecipe} portions={portions} onClose={() => setShopOpen(false)}
           onCook={() => { setShopOpen(false); setStage("cook"); }} unitMode={unitMode} onUnitMode={setUnitMode} />
       )}
     </main>
@@ -257,8 +258,9 @@ function MacroCard({ recipe }: { recipe: RecipeVersion }) {
   );
 }
 
-function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number, mode: UnitMode) {
-  return convertAmount(ing.name, ing.quantity, ing.unit, from, to, mode);
+function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number, mode: UnitMode, multiplier = 1) {
+  const q = ing.quantity == null ? null : ing.quantity * multiplier;
+  return convertAmount(ing.name, q, ing.unit, from, to, mode);
 }
 
 function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode }: {
