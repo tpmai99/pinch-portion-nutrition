@@ -79,13 +79,18 @@ function normName(s: string): string {
   return splitIngredientName(s).name.trim().toLowerCase();
 }
 
-/** Only plain added sugar is inferred from its mass; never confuse total carbs with free sugars. */
+const PLAIN_SUGAR = /^(?:(?:white|brown|granulated|caster|castor|superfine|table|cane|raw|demerara|muscovado)\s+)*sugar$/;
+const PLAIN_SALT = /^(?:(?:sea|table|kosher|fine|coarse|rock|iodised|iodized)\s+)*salt$/;
+
+/** Only plain added sugar / plain salt are inferred from their mass; never confuse total carbs with free sugars. */
 function ingredientEstimate(ing: RecipeIngredient, key: "salt" | "freeSugar"): number | null {
   const supplied = ing.nutrition[key];
   if (supplied != null) return supplied;
   const name = normName(ing.name);
-  if (!/^(?:(?:white|brown|granulated|caster|castor|superfine|table|cane|raw|demerara|muscovado)\s+)*sugar$/.test(name)) return null;
-  if (key === "salt") return 0;
+  const isSugar = PLAIN_SUGAR.test(name);
+  const isSalt = PLAIN_SALT.test(name);
+  if (!isSugar && !isSalt) return null;
+  if ((key === "salt" && isSugar) || (key === "freeSugar" && isSalt)) return 0;
   if (ing.quantity == null) return null;
   const base = baseQuantity(ing.quantity, ing.unit);
   if (!base) return null;
