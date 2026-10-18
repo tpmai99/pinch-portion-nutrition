@@ -263,26 +263,32 @@ function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, 
   return convertAmount(ing.name, q, ing.unit, from, to, mode);
 }
 
-function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode }: {
+function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode,
+  adjust, removed, onAdjust, onRemove }: {
   recipe: RecipeVersion; choice: RecipeChoice; onChoice: (choice: RecipeChoice) => void; original: ParsedRecipe;
   portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
   unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
+  adjust: Record<number, number>; removed: Set<number>;
+  onAdjust: (i: number, m: number) => void; onRemove: (i: number, on: boolean) => void;
 }) {
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [open, setOpen] = useState<number | null>(null);
   const warnings = nutritionWarnings(recipe.nutrition);
+  const shown = applyAdjustments(recipe, adjust, removed);
+  const tweaked = removed.size > 0 || Object.values(adjust).some((m) => m !== 1);
   return (
     <section className="animate-rise">
       <Back onClick={onBack} />
       <Title sub={`Scaled for ${portions} portion${portions > 1 ? "s" : ""}`}>{recipe.title}</Title>
       <div className="mb-4 grid grid-cols-2 gap-2" role="group" aria-label="Recipe version">
-        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setChecked(new Set()); }}>Same as original · 1:1</Button>
-        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Modify to healthier</Button>
+        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setOpen(null); }}>Same as original · 1:1</Button>
+        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setOpen(null); }}>Modify to healthier</Button>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">{choice === "yummy"
         ? "Original ingredients and method from your source, with quantities scaled to your chosen portions. No healthier substitutions."
         : "Suggested changes by Pinch, not the original recipe. Cooking steps, estimated nutrition and shopping items reflect this version."}</p>
       {choice === "healthier" && <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{original.changes.map((change, i) => <li key={i}>{change}</li>)}</ul>}
-      <MacroCard recipe={recipe} />
+      <MacroCard recipe={{ ...recipe, nutrition: computedNutrition(shown) }} />
+      {tweaked && <p className="-mt-3 mb-4 text-xs text-muted-foreground">Macros include your changes. Salt and free-sugar estimates stay at the recipe's level.</p>}
       <div className="mb-5 text-sm text-muted-foreground">
         <p>Estimated per portion: salt {recipe.nutrition.salt == null ? "unknown" : `${recipe.nutrition.salt.toFixed(1)} g`} · free sugars {recipe.nutrition.freeSugar == null ? "unknown" : `${recipe.nutrition.freeSugar.toFixed(1)} g`}</p>
         <p className="mt-1 text-xs">Meal planning budgets: 1.7 g salt and 8.3 g free sugars (one third of WHO adult daily guidance: less than 5 g salt; preferably 25 g free sugars at 2,000 kcal). Not official per-meal limits or personalised advice. All nutrition is estimated.</p>
@@ -290,7 +296,7 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
       </div>
       {(warnings.salt || warnings.freeSugar) && <div role="alert" className="mb-5 space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
         <p>This portion is above the meal planning budget for {warnings.salt && warnings.freeSugar ? "salt and free sugars" : warnings.salt ? "salt" : "free sugars"}.</p>
-        {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
+        {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setOpen(null); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
       </div>}
 
       <div className="mb-3 flex items-center justify-between">
