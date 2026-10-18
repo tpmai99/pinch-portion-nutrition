@@ -25,9 +25,15 @@ export function dutchGroceryTerm(name: string) {
     "minced beef": "rundergehakt", "ground beef": "rundergehakt", "lean minced beef": "mager rundergehakt",
     "extra lean minced beef": "extra mager rundergehakt", "onion": "ui", "garlic": "knoflook",
     "salt": "zout", "sugar": "suiker", "olive oil": "olijfolie", "tomatoes": "tomaten",
+    "rice noodles": "rijstnoedels", "dried rice noodles": "rijstnoedels", "flat rice noodles": "rijstnoedels",
+    "rice vermicelli": "mihoen", "vermicelli rice noodles": "mihoen", "rice stick noodles": "rijstnoedels",
     "spring onions": "bosui", "spring onion": "bosui", "scallions": "bosui", "green onions": "bosui",
   };
-  return terms[simple.toLowerCase()] ?? simple;
+  const key = simple.toLowerCase();
+  if (terms[key]) return terms[key];
+  // Supermarkets list the product, not its state: "gedroogde rijstnoedels" -> "rijstnoedels".
+  const stripped = simple.replace(/^(?:(?:gedroogde?|droge?|verse?|ongekookte?|dried|fresh|uncooked)\s+)+/i, "");
+  return terms[stripped.toLowerCase()] ?? stripped;
 }
 export type VerifiedProduct = { name: string; url: string; kcal: number | null };
 // Verified product pages only (supplied or checked by hand) — never generated. No stock guarantee.
