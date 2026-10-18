@@ -273,8 +273,9 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
   onAdjust: (i: number, m: number) => void; onRemove: (i: number, on: boolean) => void;
 }) {
   const [open, setOpen] = useState<number | null>(null);
-  const warnings = nutritionWarnings(recipe.nutrition);
   const shown = applyAdjustments(recipe, adjust, removed);
+  const nutrition = computedNutrition(shown);
+  const warnings = nutritionWarnings(nutrition);
   const tweaked = removed.size > 0 || Object.values(adjust).some((m) => m !== 1);
   return (
     <section className="animate-rise">
@@ -288,10 +289,10 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         ? "Original ingredients and method from your source, with quantities scaled to your chosen portions. No healthier substitutions."
         : "Suggested changes by Pinch, not the original recipe. Cooking steps, estimated nutrition and shopping items reflect this version."}</p>
       {choice === "healthier" && <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{original.changes.map((change, i) => <li key={i}>{change}</li>)}</ul>}
-      <MacroCard recipe={{ ...recipe, nutrition: computedNutrition(shown) }} />
-      {tweaked && <p className="-mt-3 mb-4 text-xs text-muted-foreground">Macros include your changes. Salt and free-sugar estimates stay at the recipe's level.</p>}
+      <MacroCard recipe={{ ...recipe, nutrition }} />
+      {tweaked && <p className="-mt-3 mb-4 text-xs text-muted-foreground">Nutrition includes your ingredient changes. Unknown salt or free sugars cannot be recalculated; re-import older recipes for ingredient estimates.</p>}
       <div className="mb-5 text-sm text-muted-foreground">
-        <p>Estimated per portion: salt {recipe.nutrition.salt == null ? "unknown" : `${recipe.nutrition.salt.toFixed(1)} g`} · free sugars {recipe.nutrition.freeSugar == null ? "unknown" : `${recipe.nutrition.freeSugar.toFixed(1)} g`}</p>
+        <p>Estimated per portion: salt {nutrition.salt == null ? "unknown" : `${nutrition.salt.toFixed(1)} g`} · free sugars {nutrition.freeSugar == null ? "unknown" : `${nutrition.freeSugar.toFixed(1)} g`}</p>
         <p className="mt-1 text-xs">Meal planning budgets: 1.7 g salt and 8.3 g free sugars (one third of WHO adult daily guidance: less than 5 g salt; preferably 25 g free sugars at 2,000 kcal). Not official per-meal limits or personalised advice. All nutrition is estimated.</p>
         <a className="mt-1 inline-block underline" href="https://www.who.int/news-room/fact-sheets/detail/healthy-diet" target="_blank" rel="noreferrer">WHO guidance</a>
       </div>

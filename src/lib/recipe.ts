@@ -6,7 +6,15 @@ export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   salt: number | null; freeSugar: number | null;
 };
-export type IngredientNutrition = { kcal: number; protein: number; carbs: number; fat: number };
+export type IngredientNutrition = {
+  kcal: number; protein: number; carbs: number; fat: number;
+  // Optional only for recipes imported before per-ingredient estimates existed.
+  salt?: number | null; freeSugar?: number | null;
+};
+
+function addEstimate(a: number | null | undefined, b: number | null | undefined): number | null {
+  return a == null || b == null ? null : a + b;
+}
 export type RecipeIngredient = {
   name: string; dutchName: string; quantity: number | null; unit: string; category: string;
   changedFrom: string | null; nutrition: IngredientNutrition;
@@ -36,6 +44,8 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
       protein: group.ing.nutrition.protein + ing.nutrition.protein,
       carbs: group.ing.nutrition.carbs + ing.nutrition.carbs,
       fat: group.ing.nutrition.fat + ing.nutrition.fat,
+      salt: addEstimate(group.ing.nutrition.salt, ing.nutrition.salt),
+      freeSugar: addEstimate(group.ing.nutrition.freeSugar, ing.nutrition.freeSugar),
     };
   }
   const extras: string[] = [];
@@ -121,13 +131,18 @@ export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number
       nutrition: {
         kcal: ing.nutrition.kcal * m, protein: ing.nutrition.protein * m,
         carbs: ing.nutrition.carbs * m, fat: ing.nutrition.fat * m,
+        salt: ing.nutrition.salt == null ? null : ing.nutrition.salt * m,
+        freeSugar: ing.nutrition.freeSugar == null ? null : ing.nutrition.freeSugar * m,
       },
     }];
   });
-  return { ...r, ingredients };
+  const changed = r.ingredients.some((_, i) => removed.has(i) || (adjust[i] ?? 1) !== 1);
+  // A legacy/partial recipe-level estimate is no longer valid after an adjustment.
+  const fallback = (key: "salt" | "freeSugar") => changed && r.ingredients.some(ing => ing.nutrition[key] == null) ? null : r.nutrition[key];
+  return { ...r, ingredients, nutrition: { ...r.nutrition, salt: fallback("salt"), freeSugar: fallback("freeSugar") } };
 }
 
-/** Per-portion macros recomputed from the ingredients actually in the meal. Salt and free sugars stay at the version estimate. */
+/** Recompute per-portion nutrition from included ingredients; never treat unknown as zero. */
 export function computedNutrition(r: RecipeVersion): RecipeNutrition {
   const s = r.servings > 0 ? r.servings : 1;
   const sum = r.ingredients.reduce(
@@ -139,7 +154,11 @@ export function computedNutrition(r: RecipeVersion): RecipeNutrition {
     }),
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
-  return { ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s, salt: r.nutrition.salt, freeSugar: r.nutrition.freeSugar };
+  const estimate = (key: "salt" | "freeSugar") => {
+    if (r.ingredients.some(ing => ing.nutrition[key] == null)) return r.nutrition[key];
+    return r.ingredients.reduce((total, ing) => total + (ing.nutrition[key] ?? 0), 0) / s;
+  };
+  return { ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s, salt: estimate("salt"), freeSugar: estimate("freeSugar") };
 }
 // Planning budgets, not official per-meal recommendations: one third of
 // WHO adult daily salt limit and preferred free-sugar target at 2,000 kcal.

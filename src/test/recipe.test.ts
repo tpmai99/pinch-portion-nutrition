@@ -92,10 +92,40 @@ describe("recipe and grocery choices", () => {
     const noChicken = applyAdjustments(base, {}, new Set([1]));
     expect(noChicken.ingredients.map((i) => i.name)).toEqual(["Noodles"]);
     expect(computedNutrition(noChicken).kcal).toBe(300);
-    expect(computedNutrition(noChicken).salt).toBe(1);
+    expect(computedNutrition(noChicken).salt).toBeNull();
     const moreNoodles = applyAdjustments(base, { 0: 2 }, new Set());
     expect(moreNoodles.ingredients[0]?.quantity).toBe(400);
     expect(computedNutrition(moreNoodles).kcal).toBe(850);
+  });
+  it("increasing fish sauce scales per-portion salt and changes its warning", () => {
+    const r = { title: "Fish sauce rice", servings: 2, ingredients: [
+      ing({ name: "Fish sauce", quantity: 15, unit: "ml", nutrition: { kcal: 10, protein: 1, carbs: 1, fat: 0, salt: 3, freeSugar: 0.5 } }),
+      ing({ name: "Rice", nutrition: { kcal: 300, protein: 6, carbs: 66, fat: 1, salt: 0, freeSugar: 0 } }),
+    ], steps: [], nutrition: { kcal: 155, protein: 3.5, carbs: 33.5, fat: 0.5, salt: 1.5, freeSugar: 0.25 } };
+    expect(computedNutrition(r).salt).toBe(1.5);
+    expect(nutritionWarnings(computedNutrition(r)).salt).toBe(false);
+    const more = computedNutrition(applyAdjustments(r, { 0: 2 }, new Set()));
+    expect(more.salt).toBe(3);
+    expect(more.freeSugar).toBe(0.5);
+    expect(nutritionWarnings(more).salt).toBe(true);
+    expect(computedNutrition(applyAdjustments(r, { 0: 0.5 }, new Set())).salt).toBe(0.75);
+    expect(computedNutrition(applyAdjustments(r, {}, new Set([0]))).salt).toBe(0);
+  });
+  it("does not leave stale salt totals after adjusting legacy or partially unknown recipes", () => {
+    const r = { title: "Sauce", servings: 2, ingredients: [ing()], steps: [], nutrition: { kcal: 20, protein: 0.5, carbs: 4.5, fat: 0, salt: 1, freeSugar: 2 } };
+    expect(computedNutrition(r).salt).toBe(1);
+    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).salt).toBeNull();
+    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).freeSugar).toBeNull();
+    const partial = { ...r, ingredients: [ing({ nutrition: { kcal: 40, protein: 1, carbs: 9, fat: 0, salt: null, freeSugar: 0 } })] };
+    expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).salt).toBeNull();
+    expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).freeSugar).toBe(0);
+  });
+  it("merges duplicate fish sauce salt before scaling", () => {
+    const sauce = ing({ name: "Fish sauce", quantity: 15, unit: "ml", nutrition: { kcal: 10, protein: 1, carbs: 1, fat: 0, salt: 3, freeSugar: 0.5 } });
+    const base = { title: "Sauce", servings: 2, ingredients: [sauce, sauce], steps: [], nutrition: { kcal: 10, protein: 1, carbs: 1, fat: 0, salt: 3, freeSugar: 0.5 } };
+    const selected = chooseRecipe({ ...base, healthier: base, changes: [] }, "yummy");
+    expect(selected.ingredients[0]?.nutrition.salt).toBe(6);
+    expect(computedNutrition(applyAdjustments(selected, { 0: 2 }, new Set())).salt).toBe(6);
   });
   it("labels same-ingredient amount changes differently from real swaps", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 1, freeSugar: 2 };
