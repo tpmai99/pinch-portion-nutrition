@@ -319,11 +319,19 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
     );
   }
 
-  function fillCart(storeId: string) {
-    const s = STORES.find((x) => x.id === storeId)!;
-    const list = missingItems.map((m) => `${m.name} — ${ingredientLine(m, recipe.servings, portions)}`).join("\n");
-    navigator.clipboard?.writeText(list).catch(() => {});
-    window.open(s.searchUrl(missingItems[0]?.name ?? ""), "_blank");
+  const [mode, setMode] = useState<"online" | "visit" | null>(null);
+  const store = STORES.find((x) => x.id === selected);
+
+  if (mode && store) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()}
+          className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
+          <ShopList store={store} mode={mode} loc={loc} items={missingItems.map((m) => ({ name: m.name, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
+            onBack={() => setMode(null)} onCook={onCook} />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -421,10 +429,13 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                     </li>
                   ))}
                 </ul>
-                <p className="mb-5 text-xs text-muted-foreground">Distances and prices are estimates. Your list is copied when you open the store.</p>
-                <PrimaryButton disabled={!selected} onClick={() => selected && fillCart(selected)}>
-                  <ShoppingBag className="h-5 w-5" /> Fill online cart
+                <p className="mb-5 text-xs text-muted-foreground">Distances and prices are estimates.</p>
+                <PrimaryButton disabled={!selected} onClick={() => setMode("visit")}>
+                  <MapPin className="h-5 w-5" /> Go there & buy
                 </PrimaryButton>
+                <GhostButton className="mt-3" disabled={!selected} onClick={() => setMode("online")}>
+                  <ShoppingBag className="h-5 w-5" /> Shop online
+                </GhostButton>
                 <GhostButton className="mt-3" onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
               </>
             )}
