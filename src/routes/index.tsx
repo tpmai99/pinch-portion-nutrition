@@ -15,6 +15,7 @@ import { verifiedProduct } from "@/lib/grocery";
 import { CookingGuide } from "@/components/CookingGuide";
 import { isTikTokRecipeLink } from "@/lib/recipe-links";
 import { videoUploadError } from "@/lib/video";
+import { storeCoverage } from "@/lib/store-coverage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -423,6 +424,7 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
   const [loc, setLoc] = useState("");
   const [locating, setLocating] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const missingItems = recipe.ingredients.filter((_, i) => missing.has(i));
   const [nearby, setNearby] = useState<Record<string, NearbyStore>>({});
@@ -458,6 +460,8 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
 
   const [mode, setMode] = useState<"online" | "visit" | null>(null);
   const store = STORES.find((x) => x.id === selected);
+  const coverage = store ? storeCoverage(store.id, missingItems) : null;
+  useEffect(() => { setSelected(null); setAcknowledged(false); }, [loc, pref]);
 
   if (mode && store) {
     return (
@@ -557,6 +561,7 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
         {step === "stores" && (
           <>
             <h2 className="mb-5 font-display text-3xl">Nearby supermarkets</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Nearby options, not confirmed one-stop shops. Live stock is not connected; check every missing item before travelling.</p>
             <div className="mb-5 flex gap-2">
               <input value={loc} onChange={(e) => setLoc(e.target.value.toUpperCase())} placeholder="Postal code, e.g. 1012 AB"
                 className="flex-1 rounded-2xl border border-border bg-card px-4 py-3 outline-none focus:border-accent" />
@@ -573,13 +578,15 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
                 <ul className="mb-3 space-y-2">
                   {stores.map((s) => (
                     <li key={s.id}>
-                      <button onClick={() => setSelected(s.id)}
-                        className={cn("tactile flex w-full items-center justify-between rounded-2xl border p-4 text-left",
+                      <Button variant="outline" onClick={() => { setSelected(s.id); setAcknowledged(false); }} aria-pressed={selected === s.id}
+                        className={cn("tactile flex h-auto w-full items-center justify-between whitespace-normal rounded-2xl border p-4 text-left",
                           selected === s.id ? "border-accent bg-card shadow-lift" : "border-border bg-card")}>
                         <div className="min-w-0">
                           <div className="font-medium">{s.name}</div>
                           <div className="text-sm text-muted-foreground">{s.km != null ? `${s.km} km away` : "No store found nearby"}</div>
                           {s.address && <div className="truncate text-xs text-muted-foreground">{s.address}</div>}
+                          <div className="mt-2 text-xs text-foreground">{storeCoverage(s.id, missingItems).matched}/{missingItems.length} saved product matches</div>
+                          <div className="text-xs text-destructive">{missingItems.length}/{missingItems.length} items: local stock unverified</div>
                           <span className={cn("mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
                             s.cart === "auto" ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground")}>
                             {s.cart === "auto" ? <Check className="h-3 w-3" /> : <Info className="h-3 w-3" />}
@@ -590,21 +597,39 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
                           <div className="font-display text-2xl">€{s.cost.toFixed(2)}</div>
                           <div className="text-xs text-muted-foreground">est. cart</div>
                         </div>
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
                 <p className="mb-4 text-xs text-muted-foreground">Nearest branch from Google Maps, straight-line distance. Cart prices are estimates.</p>
+                {store && coverage && <section aria-label={`${store.name} shopping coverage`} className="mb-4 border-y border-border py-4">
+                  <h3 className="font-medium">Check your whole list at {store.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{coverage.matched} saved product match{coverage.matched === 1 ? "" : "es"} · {coverage.unmatched} without a verified product match. Neither confirms stock at this branch.</p>
+                  <ul className="my-3 divide-y divide-border">
+                    {coverage.products.map((item, i) => <li key={i} className="flex items-start gap-3 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{item.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.product ? `Saved match: ${item.product.name}` : "No verified product match — check the store"}</p>
+                        <p className="mt-1 text-xs text-destructive">Local stock unverified</p>
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="shrink-0"><a href={item.product?.url ?? store.searchUrl(item.dutchName)} target="_blank" rel="noopener noreferrer">{item.product ? "Product" : "Search"}</a></Button>
+                    </li>)}
+                  </ul>
+                  <label className="flex items-start gap-3 text-sm">
+                    <input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-primary" />
+                    <span>I understand the full list is not confirmed in stock and I may need another store.</span>
+                  </label>
+                </section>}
                 {store && store.cart !== "auto" && (
                   <div className="mb-4 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <span><span className="font-medium text-foreground">Before you choose: </span>{store.cartNote}</span>
                   </div>
                 )}
-                <PrimaryButton disabled={!selected} onClick={() => setMode("visit")}>
+                <PrimaryButton disabled={!selected || !acknowledged} onClick={() => setMode("visit")}>
                   <MapPin className="h-5 w-5" /> Go there & buy
                 </PrimaryButton>
-                <GhostButton className="mt-3" disabled={!selected} onClick={() => setMode("online")}>
+                <GhostButton className="mt-3" disabled={!selected || !acknowledged} onClick={() => setMode("online")}>
                   <ShoppingBag className="h-5 w-5" /> Fill online cart
                 </GhostButton>
                 <GhostButton className="mt-3" onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
@@ -654,7 +679,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
   const [search, setSearch] = useState(item.dutchName);
   const [copied, setCopied] = useState(false);
   const [linkState, setLinkState] = useState<"idle" | "copied" | "manual">("idle");
-  const product = /\d+(?:[.,]\d+)?\s*%/.test(item.name) ? null : (verifiedProduct(store.id, search) ?? verifiedProduct(store.id, item.name));
+  const product = /\d+(?:[.,]\d+)?\s*%/.test(item.name) ? null : verifiedProduct(store.id, item.name);
   const productUrl = product?.url ?? store.searchUrl(search);
   return (
     <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
@@ -666,9 +691,10 @@ function ProductRow({ item, store, mode, done, onToggle }: {
         <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
         {item.changeLabel && <div className="text-xs text-accent">{item.changeLabel}</div>}
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
+        <p className="mt-1 text-xs text-destructive">{product ? "Saved product match · local stock unverified" : "No verified product match · local stock unverified"}</p>
         {mode === "online" && <>
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
-          {product && <p className="mt-1 text-xs text-muted-foreground">Recommended: {product.name}{product.kcal != null ? ` · ${product.kcal} kcal/100 g` : ""} · choose packs for your recipe amount</p>}
+          {product && <p className="mt-1 text-xs text-muted-foreground">Saved match: {product.name}{product.kcal != null ? ` · ${product.kcal} kcal/100 g` : ""} · choose packs for your recipe amount</p>}
           <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(search); setCopied(true); } catch { setCopied(false); } }}>{copied ? "Copied" : "Copy Dutch name"}</Button>
           {store.id === "jumbo" && <>
             <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(productUrl); setLinkState("copied"); } catch { setLinkState("manual"); } }}>{linkState === "copied" ? "Link copied" : "Copy link"}</Button>
@@ -704,6 +730,7 @@ function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
       <p className="mb-4 text-sm text-muted-foreground">
         {mode === "visit" ? "Sorted by aisle. Tick items off as you go." : "Your list, with a photo, name and amount for each item."}
       </p>
+      <p role="alert" className="mb-4 text-sm text-destructive">This store is not confirmed to have your full list. Local stock is unverified for all {items.length} items; check with the branch before travelling.</p>
       {mode === "online" && (
         <div className="mb-5 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />

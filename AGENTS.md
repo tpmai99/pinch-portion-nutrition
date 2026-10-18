@@ -22,3 +22,4 @@
 - Video extraction separates visible text, narration, ingredients and instructions for review before normal import; shared upload validation and stream decoding live in a browser-safe video module to keep the flow testable.
 - Recognize TikTok shared-link aliases before generic HTML import and require concrete recipe detail in post captions; why: unrelated page chrome and short titles are not video transcripts.
 - Extract Facebook recipes from complete embedded post messages before applying any generic page truncation; reject preview-only content because later ingredient sections otherwise disappear.
+- Derive whole-list store coverage in the browser-safe store-coverage module from canonical ingredient names; saved catalog links and search terms never count as branch stock, so incomplete verification requires acknowledgement before shopping.
