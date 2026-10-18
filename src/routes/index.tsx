@@ -611,7 +611,8 @@ function ShopList({ store, mode, loc, items, onBack, onCook }: {
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
-  const maps = `https://www.google.com/maps/search/${encodeURIComponent(`${store.name} ${loc}`)}`;
+  const maps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(loc)}&destination=${encodeURIComponent(`${store.name} supermarket near ${loc}`)}&travelmode=walking`;
+  const [mapCopied, setMapCopied] = useState(false);
   return (
     <>
       <h2 className="mb-1 font-display text-3xl">{mode === "visit" ? `Your ${store.name} list` : `Shop ${store.name} online`}</h2>
@@ -635,10 +636,13 @@ function ShopList({ store, mode, loc, items, onBack, onCook }: {
         ))}
       </ul>
       {mode === "visit" && (
-        <a href={maps} target="_blank" rel="noreferrer"
-          className="tactile mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 font-medium text-primary-foreground shadow-lift">
+        <>
+        <a href={maps} target="_blank" rel="noopener noreferrer"
+          className="tactile mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 font-medium text-primary-foreground shadow-lift">
           <MapPin className="h-5 w-5" /> Directions to {store.name}
         </a>
+        <p className="mb-3 text-center text-xs text-muted-foreground">Blocked? <button className="underline" onClick={async () => { try { await navigator.clipboard.writeText(maps); setMapCopied(true); } catch { window.prompt("Copy this link", maps); } }}>{mapCopied ? "Link copied" : "Copy directions link"}</button> and paste it into a new tab.</p>
+        </>
       )}
       <GhostButton onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
       <button onClick={onBack} className="mt-3 w-full text-sm text-muted-foreground">Back to stores</button>
