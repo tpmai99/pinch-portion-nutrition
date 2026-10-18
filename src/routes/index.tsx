@@ -3,9 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChefHat, ChevronDown, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
+  ArrowLeft, ArrowRight, Check, ChefHat, ChevronDown, Film, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
-import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
+import { parseRecipe, readRecipeVideo, type ParsedRecipe } from "@/lib/recipe.functions";
 import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
 import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
@@ -204,7 +204,7 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
         {mode === "video" && (
           <button onClick={() => videoRef.current?.click()}
             className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-muted text-muted-foreground">
-            {video ? <video src={video.dataUrl} muted playsInline controls className="h-full w-full object-contain" />
+            {video ? <video src={video.dataUrl} muted playsInline autoPlay loop className="h-full w-full object-contain" />
               : (<><Film className="h-7 w-7" /><span className="text-sm">Tap to upload a cooking video</span><span className="text-xs">Reads on-screen text and what's said · up to 25 MB</span></>)}
           </button>
         )}
