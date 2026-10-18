@@ -60,9 +60,11 @@ async function textFromUrl(url: string): Promise<string> {
       });
       if (r.ok) {
         const html = await r.text();
-        const desc =
+        let desc =
           html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1] ??
           html.match(/<meta[^>]+(?:property|name)="(?:og:)?description"[^>]+content="([^"]*)"/i)?.[1] ?? "";
+        // The bot-wall shell carries a generic boilerplate description — not the recipe.
+        if (/Enjoy the videos and music you love/i.test(desc)) desc = "";
         if (desc) parts.push("Video description:\n" + desc.replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
       }
     } catch { /* title alone may be enough */ }
