@@ -646,6 +646,8 @@ function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
   const maps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(loc)}&destination=${encodeURIComponent(address ? `${store.name}, ${address}` : `${store.name} supermarket near ${loc}`)}&travelmode=walking`;
   const [mapCopied, setMapCopied] = useState(false);
+  const [embedded, setEmbedded] = useState(false);
+  useEffect(() => { try { setEmbedded(window.self !== window.top); } catch { setEmbedded(true); } }, []);
   return (
     <>
       <h2 className="mb-1 font-display text-3xl">{mode === "visit" ? `Your ${store.name} list` : `Shop ${store.name} online`}</h2>
@@ -675,6 +677,7 @@ function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
           <MapPin className="h-5 w-5" /> Directions to {store.name}
         </a>
         <p className="mb-3 text-center text-xs text-muted-foreground">Blocked? <button className="underline" onClick={async () => { try { await navigator.clipboard.writeText(maps); setMapCopied(true); } catch { window.prompt("Copy this link", maps); } }}>{mapCopied ? "Link copied" : "Copy directions link"}</button> and paste it into a new tab.</p>
+        {embedded && <p className="mb-3 text-center text-xs text-muted-foreground">You're using Pinch inside a preview window, and some browsers (like Firefox) block Google Maps from there. <a className="underline" href={typeof window !== "undefined" ? window.location.href : "/"} target="_blank" rel="noopener noreferrer">Open Pinch in its own tab</a> and the directions will open normally.</p>}
         </>
       )}
       <GhostButton onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
