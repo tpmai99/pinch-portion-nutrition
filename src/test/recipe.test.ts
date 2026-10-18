@@ -11,6 +11,7 @@ describe("recipe and grocery choices", () => {
   });
   it("does not replace vegetarian mince with beef", () => {
     expect(jumboBeefProduct("vegetarian ground beef")).toBeNull();
+    expect(jumboBeefProduct("extra lean minced beef 5% fat")).toBeNull();
   });
   it("searches Dutch stores in Dutch without Jumbo's broken path", () => {
     expect(dutchGroceryTerm("Minced beef")).toBe("rundergehakt");

@@ -8,7 +8,10 @@ const BEEF: Record<"regular" | "lean" | "extraLean", BeefProduct> = {
 export function jumboBeefProduct(name: string): BeefProduct | null {
   if (/vegan|vegetar|plant|pork|varken|half.om.half|chicken|kip|turkey|kalkoen/i.test(name)) return null;
   if (!/(?:minced|ground).*beef|beef.*(?:mince|ground)|rundergehakt|rund.*gehakt|gehakt.*rund/i.test(name)) return null;
-  if (/extra[ -]?(?:lean|mager)|5\s*%/i.test(name)) return BEEF.extraLean;
+  const fatLimit = name.match(/(\d+(?:[.,]\d+)?)\s*%/);
+  // The verified extra-lean product has 9.4 g fat/100 g, not 5%.
+  if (fatLimit?.[1] && Number(fatLimit[1].replace(",", ".")) < 9.4) return null;
+  if (/extra[ -]?(?:lean|mager)/i.test(name)) return BEEF.extraLean;
   return /lean|mager/i.test(name) ? BEEF.lean : BEEF.regular;
 }
 export function dutchGroceryTerm(name: string) {

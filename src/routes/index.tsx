@@ -568,7 +568,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
   const img = useProductImage(item.name);
   const [search, setSearch] = useState(item.dutchName);
   const [copied, setCopied] = useState(false);
-  const product = store.id === "jumbo" ? jumboBeefProduct(search) : null;
+  const product = store.id === "jumbo" && !/\d+(?:[.,]\d+)?\s*%/.test(item.name) ? jumboBeefProduct(search) : null;
   return (
     <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-secondary">
