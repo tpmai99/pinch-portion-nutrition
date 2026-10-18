@@ -1,10 +1,4 @@
-- [x] Correct Jumbo's broken search path; generic search can still return no results, so offer copyable Dutch names.
-- [x] Verify supplied lean beef and regular/extra-lean variants; match only compatible ingredients.
-- [x] Verify real recipe → warning → healthier version → Jumbo product flow; 12 tests pass.
-- [x] Add Yummy/original and Healthier ingredient choices with estimated nutrition.
-- [x] Generate Dutch grocery terms and allow search corrections.
-- [x] Estimate salt/free sugars per portion, warn against labeled planning budgets, and offer adjustment.
-- [x] Check reported Jumbo search block; retain the verified search address and add a catalogue fallback with blocked-page guidance.
-- [ ] Simplify ingredient names while preserving preparation in cooking steps; provide a safe copy-link fallback for Firefox's security warning.
-- [x] Real nearby store distances
-- [x] Fix blocked "Directions" link to store
+# Roadmap
+
+- [ ] Mark substituted ingredients in the healthier version with "Changed · was: …" (overview, shop sheet, store lists) — in progress, verifying in preview
+- [ ] Recalculate per-portion macros when the user selects (removes) ingredients on the overview screen
