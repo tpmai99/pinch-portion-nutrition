@@ -615,7 +615,10 @@ function ShopList({ store, mode, loc, items, onBack, onCook }: {
       {mode === "online" && (
         <div className="mb-5 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{store.cartNote}</span>
+          <div className="min-w-0 space-y-2">
+            <p>{store.cartNote}</p>
+            {store.id === "jumbo" && <Button asChild size="sm" variant="outline" className="h-auto whitespace-normal"><a href="https://www.jumbo.com/producten/" target="_blank" rel="noreferrer">Open Jumbo catalogue</a></Button>}
+          </div>
         </div>
       )}
       <ul className="mb-6 space-y-2">

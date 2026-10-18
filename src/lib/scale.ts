@@ -53,7 +53,7 @@ export const STORES: Store[] = [
   { id: "ah", name: "Albert Heijn", tier: "quality", priceFactor: 1.15, cart: "manual", searchUrl: (q) => `https://www.ah.nl/zoeken?query=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Albert Heijn doesn't let other apps put items in your cart. Tap “Add” on each item to open it on ah.nl and add it there." },
   { id: "jumbo", name: "Jumbo", tier: "quality", priceFactor: 1.05, cart: "manual", searchUrl: (q) => `https://www.jumbo.com/producten/?searchTerms=${encodeURIComponent(dutchGroceryTerm(q))}`,
-    cartNote: "Jumbo can't fill your cart automatically. Open a matched product and add it on Jumbo. Other items use Dutch search; results and availability may vary. If search fails, copy the Dutch name into Jumbo's own search." },
+    cartNote: "Jumbo can't fill your cart automatically. Open a matched product and add it on Jumbo. Other items use Dutch search; results and availability may vary. If Jumbo says the page is blocked, copy the Dutch name and open Jumbo's catalogue in your regular browser or use the Jumbo app. Pinch cannot remove a block imposed by Jumbo." },
   { id: "ekoplaza", name: "Ekoplaza", tier: "quality", priceFactor: 1.35, cart: "manual", searchUrl: (q) => `https://www.ekoplaza.nl/nl/zoeken?q=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Ekoplaza doesn't let other apps put items in your cart. Tap “Add” on each item to open it on ekoplaza.nl and add it there." },
 ];
