@@ -659,7 +659,8 @@ function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0 space-y-2">
             <p>{store.cartNote}</p>
-            {store.id === "jumbo" && <p>Firefox security warning? Use “Copy link” on the item and paste it into the address bar of a new browser tab. Keep your browser security enabled.</p>}
+            {store.id === "jumbo" && <p>Firefox security warning? Use “Copy link”, then open a brand-new tab yourself (Cmd/Ctrl + T) and paste it there. Pasting into the blocked tab doesn't work, because that tab keeps the block.</p>}
+            {embedded && <PreviewBlockNote />}
             {store.id === "jumbo" && <Button asChild size="sm" variant="outline" className="h-auto whitespace-normal"><a href="https://www.jumbo.com/producten/" target="_blank" rel="noreferrer">Open Jumbo catalogue</a></Button>}
           </div>
         </div>
@@ -676,12 +677,25 @@ function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
           className="tactile mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 font-medium text-primary-foreground shadow-lift">
           <MapPin className="h-5 w-5" /> Directions to {store.name}
         </a>
-        <p className="mb-3 text-center text-xs text-muted-foreground">Blocked? <button className="underline" onClick={async () => { try { await navigator.clipboard.writeText(maps); setMapCopied(true); } catch { window.prompt("Copy this link", maps); } }}>{mapCopied ? "Link copied" : "Copy directions link"}</button> and paste it into a new tab.</p>
-        {embedded && <p className="mb-3 text-center text-xs text-muted-foreground">You're using Pinch inside a preview window, and some browsers (like Firefox) block Google Maps from there. <a className="underline" href={typeof window !== "undefined" ? window.location.href : "/"} target="_blank" rel="noopener noreferrer">Open Pinch in its own tab</a> and the directions will open normally.</p>}
+        <p className="mb-3 text-center text-xs text-muted-foreground">Blocked? <button className="underline" onClick={async () => { try { await navigator.clipboard.writeText(maps); setMapCopied(true); } catch { window.prompt("Copy this link", maps); } }}>{mapCopied ? "Link copied" : "Copy directions link"}</button> then open a brand-new tab (Cmd/Ctrl + T) and paste it there, not in the blocked tab.</p>
+        {embedded && <div className="mb-3 text-xs text-muted-foreground"><PreviewBlockNote /></div>}
         </>
       )}
       <GhostButton onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
       <button onClick={onBack} className="mt-3 w-full text-sm text-muted-foreground">Back to stores</button>
     </>
+  );
+}
+
+/** Links opened from the Lovable preview window inherit its restrictions, so Firefox blocks
+ *  sites like Jumbo and Google Maps even after pasting into that same tab. A tab the user opens
+ *  themselves has no such restriction. */
+function PreviewBlockNote() {
+  const [copied, setCopied] = useState(false);
+  const url = "https://pinch-portion-nutrition.lovable.app";
+  return (
+    <p>You're using Pinch inside a preview window, so Firefox blocks shop and map pages opened from here. Open a brand-new tab (Cmd/Ctrl + T) and go to{" "}
+      <button className="underline" onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); } catch { window.prompt("Copy this address", url); } }}>{copied ? "address copied" : "pinch-portion-nutrition.lovable.app"}</button>
+      {" "}(after publishing), or paste the copied shop link there. Links then open normally.</p>
   );
 }
