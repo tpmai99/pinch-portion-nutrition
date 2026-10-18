@@ -6,5 +6,5 @@
 - [x] Estimate salt/free sugars per portion, warn against labeled planning budgets, and offer adjustment.
 - [x] Check reported Jumbo search block; retain the verified search address and add a catalogue fallback with blocked-page guidance.
 - [ ] Simplify ingredient names while preserving preparation in cooking steps; provide a safe copy-link fallback for Firefox's security warning.
-- [ ] Real nearby store distances (needs Google Maps connection)
-- [ ] Fix blocked "Directions" link to store
+- [x] Real nearby store distances
+- [x] Fix blocked "Directions" link to store
