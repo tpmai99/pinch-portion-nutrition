@@ -7,6 +7,16 @@ const ing = (over: Partial<Parameters<typeof chooseRecipe>[0]["ingredients"][num
   ({ name: "Onion", dutchName: "ui", quantity: 1, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 40, protein: 1, carbs: 9, fat: 0 }, ...over });
 
 describe("recipe and grocery choices", () => {
+  it("keeps ingredient calorie contributions per portion in sync with amounts and removal", () => {
+    const ingredient = ing({ nutrition: { kcal: 330, protein: 60, carbs: 0, fat: 10 } });
+    const recipe = { title: "Chicken", servings: 3, ingredients: [ingredient], steps: [], nutrition: { kcal: 110, protein: 20, carbs: 0, fat: 10 / 3, salt: null, freeSugar: null } };
+    expect(ingredient.nutrition.kcal / recipe.servings).toBe(110);
+    const doubled = applyAdjustments(recipe, { 0: 2 }, new Set());
+    expect((doubled.ingredients[0]?.nutrition.kcal ?? -1) / recipe.servings).toBe(220);
+    expect(computedNutrition(doubled).kcal).toBe(220);
+    const removed = applyAdjustments(recipe, { 0: 2 }, new Set([0]));
+    expect(computedNutrition(removed).kcal).toBe(0);
+  });
   it("moves spring-onion preparation into cooking and searches for bosui in both versions", () => {
     const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0 } }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
     const recipe: ParsedRecipe = { ...base, healthier: base, changes: [] };

@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Show estimated kcal per portion beside ingredients and verify amount changes and removal
+- [x] Show estimated kcal per portion beside ingredients and verify amount changes and removal
 - [ ] Confirm whether the user's video serves three but lists noodles for one — blocked: original video is not available in chat uploads
 
 - [x] Keep sugar estimates and warnings recalculating when sugar amounts change, including older or partially estimated recipes
