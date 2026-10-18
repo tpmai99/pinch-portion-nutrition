@@ -30,6 +30,12 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
     } else {
       group.others.push({ quantity: ing.quantity, unit: ing.unit });
     }
+    group.ing.nutrition = {
+      kcal: group.ing.nutrition.kcal + ing.nutrition.kcal,
+      protein: group.ing.nutrition.protein + ing.nutrition.protein,
+      carbs: group.ing.nutrition.carbs + ing.nutrition.carbs,
+      fat: group.ing.nutrition.fat + ing.nutrition.fat,
+    };
   }
   const extras: string[] = [];
   const merged = [...groups.values()].map(({ ing, others }) => {
