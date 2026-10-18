@@ -4,6 +4,19 @@ import { dutchGroceryTerm, jumboBeefProduct } from "@/lib/grocery";
 import { STORES } from "@/lib/scale";
 
 describe("recipe and grocery choices", () => {
+  it("moves spring-onion preparation into cooking and searches for bosui in both versions", () => {
+    const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce" }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
+    const recipe: ParsedRecipe = { ...base, healthier: base, changes: [] };
+    for (const choice of ["yummy", "healthier"] as const) {
+      const selected = chooseRecipe(recipe, choice);
+      expect(selected.ingredients[0]?.name).toBe("Spring onions");
+      expect(selected.ingredients[0]?.dutchName).toBe("bosui");
+      expect(selected.steps[0]).toBe("Spring onions: cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)");
+      expect(selected.steps[1]).toBe("Fry onions");
+    }
+    expect(recipe.ingredients[0]?.name).toContain("cut into 3 cm pieces");
+    expect(dutchGroceryTerm(base.ingredients[0].name)).toBe("bosui");
+  });
   it("uses the supplied lean beef page, and extra-lean beef has fewer label calories", () => {
     expect(jumboBeefProduct("lean minced beef")?.url).toBe("https://www.jumbo.com/producten/jumbo-rund-mager-gehakt-400-g-716180TRA");
     expect(jumboBeefProduct("extra lean minced beef")?.kcal).toBe(161);

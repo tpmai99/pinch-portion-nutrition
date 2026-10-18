@@ -1,4 +1,9 @@
 export type BeefProduct = { name: string; url: string; kcal: number; grams: number };
+export function splitIngredientName(name: string) {
+  const match = name.match(/[,;]\s*(?=(?:cut|chopped|sliced|diced|minced|grated|peeled|crushed|whites?|greens?|finely|roughly|gesneden|gehakt|geraspt)\b)/i);
+  if (match?.index == null) return { name: name.trim(), preparation: "" };
+  return { name: name.slice(0, match.index).trim(), preparation: name.slice(match.index + 1).trim() };
+}
 // Product pages and label values checked on 18 October 2026. No stock guarantee.
 const BEEF: Record<"regular" | "lean" | "extraLean", BeefProduct> = {
   regular: { name: "Jumbo Rundergehakt 500 g", url: "https://www.jumbo.com/producten/jumbo-rundergehakt-500-g-131278BAK", kcal: 244, grams: 500 },
@@ -15,10 +20,12 @@ export function jumboBeefProduct(name: string): BeefProduct | null {
   return /lean|mager/i.test(name) ? BEEF.lean : BEEF.regular;
 }
 export function dutchGroceryTerm(name: string) {
+  const simple = splitIngredientName(name).name;
   const terms: Record<string, string> = {
     "minced beef": "rundergehakt", "ground beef": "rundergehakt", "lean minced beef": "mager rundergehakt",
     "extra lean minced beef": "extra mager rundergehakt", "onion": "ui", "garlic": "knoflook",
     "salt": "zout", "sugar": "suiker", "olive oil": "olijfolie", "tomatoes": "tomaten",
+    "spring onions": "bosui", "spring onion": "bosui", "scallions": "bosui", "green onions": "bosui",
   };
-  return terms[name.toLowerCase().trim()] ?? name.trim();
+  return terms[simple.toLowerCase()] ?? simple;
 }
