@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Show full missing-item coverage before supermarket selection, without presenting unverified products as available
+- [x] Show full missing-item coverage before supermarket selection, without presenting unverified products as available; verified with a real three-ingredient import
+- [ ] Confirm live supermarket inventory for every missing product — blocked: no supported retailer inventory connection is available; product links are not stock evidence
 
 - [x] Fix Facebook post extraction so topping ingredients, including beef, are not lost behind shortened previews; verified the exact shared link includes beef and noodles
 
