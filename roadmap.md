@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Recalculate salt and free sugars when ingredients change and use those totals for warnings
+
 - [x] Group cooking into Preparation and Cooking with an overview, optional details and a choice of where to start
 
 - [x] Mark substituted ingredients in the healthier version with "Changed · was: …" (overview, shop sheet, store lists)
