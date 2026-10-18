@@ -101,7 +101,12 @@ export function convertAmount(
   const fallback = `${formatQuantity(q)}${unit ? " " + unit : ""}`;
   if (mode === "metric") {
     if (massG) return gramsText(massG);
-    if (volMl) return mlText(volMl);
+    if (volMl) {
+      // Solids should not be shown in ml — convert to grams when the density is known.
+      const density = gramsPerCup(name);
+      if (!isLiquid(name) && density) return gramsText((volMl * density) / 240);
+      return mlText(volMl);
+    }
     return fallback;
   }
   if (volMl) return cupsText(volMl / 240);
