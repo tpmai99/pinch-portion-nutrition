@@ -434,7 +434,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                   <MapPin className="h-5 w-5" /> Go there & buy
                 </PrimaryButton>
                 <GhostButton className="mt-3" disabled={!selected} onClick={() => setMode("online")}>
-                  <ShoppingBag className="h-5 w-5" /> Shop online
+                  <ShoppingBag className="h-5 w-5" /> Fill online cart
                 </GhostButton>
                 <GhostButton className="mt-3" onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
               </>
