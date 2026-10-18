@@ -31,9 +31,9 @@ describe("recipe and grocery choices", () => {
   it("keeps the original or switches ingredients, steps and nutrition together", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 2, freeSugar: 9 };
     const base = { title: "Beef", servings: 2, ingredients: [{ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat" }], steps: ["Fry beef"], nutrition: n };
-    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ ...base.ingredients[0], name: "extra lean minced beef" }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
-    expect(chooseRecipe(r, "yummy").ingredients[0].name).toBe("minced beef");
-    expect(chooseRecipe(r, "healthier").ingredients[0].name).toBe("extra lean minced beef");
+    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat" }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
+    expect(chooseRecipe(r, "yummy").ingredients[0]?.name).toBe("minced beef");
+    expect(chooseRecipe(r, "healthier").ingredients[0]?.name).toBe("extra lean minced beef");
     expect(chooseRecipe(r, "healthier").steps[0]).toBe("Fry extra lean beef");
     expect(chooseRecipe(r, "healthier").nutrition.kcal).toBe(400);
   });
