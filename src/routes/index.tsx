@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
 import {
-  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, storeDistance, type Preference,
+  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, type Preference,
 } from "@/lib/scale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
