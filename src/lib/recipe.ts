@@ -148,6 +148,32 @@ export function ingredientChangeLabel(
   return `${delta < 0 ? "Decreased" : "Increased"} by ${formatQuantity(abs)}${unit ? ` ${unit}` : ""}`;
 }
 
+/** Applies user-entered gram amounts for unquantified (optional) ingredients and estimates
+ *  their macros from the per-100 g values; when per-100 g is unknown the model's full-amount
+ *  estimate is kept. Everything else passes through unchanged. */
+export function applyOptionalAmounts(r: RecipeVersion, grams: Record<number, number>): RecipeVersion {
+  if (!Object.keys(grams).length) return r;
+  const ingredients = r.ingredients.map((ing, i) => {
+    const g = grams[i];
+    if (g == null || !Number.isFinite(g) || g <= 0) return ing;
+    const p = ing.nutrition?.per100g;
+    const from = (v: number | null | undefined, fallback: number) => (v == null ? fallback : (v * g) / 100);
+    return {
+      ...ing,
+      quantity: g,
+      unit: "g",
+      nutrition: {
+        ...ing.nutrition,
+        kcal: from(p?.kcal, ing.nutrition.kcal),
+        protein: from(p?.protein, ing.nutrition.protein),
+        carbs: from(p?.carbs, ing.nutrition.carbs),
+        fat: from(p?.fat, ing.nutrition.fat),
+      },
+    };
+  });
+  return { ...r, ingredients };
+}
+
 /** Drops removed ingredients and scales kept ones (with their nutrition) by the user's amount multiplier. */
 export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number>, removed: Set<number>): RecipeVersion {
   const ingredients = r.ingredients.flatMap((ing, i) => {
