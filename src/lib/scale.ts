@@ -50,6 +50,8 @@ export const STORES: Store[] = [
     cartNote: "Aldi has no online shop in the Netherlands, so no app can fill a cart there. Tap “Go there & buy” and shop this list in store." },
   { id: "dirk", name: "Dirk", tier: "cheap", priceFactor: 0.83, cart: "none", searchUrl: (q) => `https://www.dirk.nl/zoeken/producten/${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Dirk deliberately doesn't deliver or sell online, so no app can fill a cart there. Tap “Go there & buy” and shop this list in store." },
+  { id: "vomar", name: "Vomar", tier: "cheap", priceFactor: 0.82, cart: "manual", searchUrl: (q) => `https://www.vomar.nl/zoeken?search=${encodeURIComponent(dutchGroceryTerm(q))}`,
+    cartNote: "Vomar doesn't let other apps put items in your cart. Tap “Add” on each item to search it on vomar.nl and add it there, or shop this list in store. Results and availability may vary." },
   { id: "ah", name: "Albert Heijn", tier: "quality", priceFactor: 1.15, cart: "manual", searchUrl: (q) => `https://www.ah.nl/zoeken?query=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Albert Heijn doesn't let other apps put items in your cart. Tap “Add” on each item to open it on ah.nl and add it there." },
   { id: "jumbo", name: "Jumbo", tier: "quality", priceFactor: 1.05, cart: "manual", searchUrl: (q) => `https://www.jumbo.com/producten/?searchTerms=${encodeURIComponent(dutchGroceryTerm(q))}`,
