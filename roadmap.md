@@ -5,3 +5,4 @@
 - [x] Generate Dutch grocery terms and allow search corrections.
 - [x] Estimate salt/free sugars per portion, warn against labeled planning budgets, and offer adjustment.
 - [x] Check reported Jumbo search block; retain the verified search address and add a catalogue fallback with blocked-page guidance.
+- [ ] Simplify ingredient names while preserving preparation in cooking steps; provide a safe copy-link fallback for Firefox's security warning.
