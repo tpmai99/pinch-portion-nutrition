@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Keep sugar estimates and warnings recalculating when sugar amounts change, including older or partially estimated recipes
+- [x] Keep sugar estimates and warnings recalculating when sugar amounts change, including older or partially estimated recipes
 
 - [x] Recalculate salt and free sugars when ingredients change and use those totals for warnings
 
