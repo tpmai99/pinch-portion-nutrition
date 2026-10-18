@@ -16,5 +16,5 @@
 - Nearby store distances come from Google Maps lookups on the server, never invented numbers; why: shoppers rely on them to pick a branch.
 - Keep gram/cup unit conversions in the browser-safe `src/lib/units.ts`; when an ingredient's density is unknown, keep grams instead of guessing a cup amount.
 - Structured-output schemas for the import model must declare every property as required (optional properties break the AI gateway's response format); use null instead of optional.
-- Per-ingredient nutrition including nullable salt/free sugars comes from the import model; recompute totals and warnings in the browser-safe recipe module after adjustments/removals. Invalidate incomplete legacy totals after changes rather than displaying stale estimates.
+- Recompute nutrition and warnings in the browser-safe recipe module using imported ingredient estimates, with a narrow mass-based fallback for plain added sugar; update known legacy totals by known contribution deltas and invalidate them only when a changed contribution is unknown, so unchanged unknown ingredients do not discard valid estimates.
 - Derive cooking sections in the browser-safe cooking module without changing the import contract; keep mixed and later preparation steps in source order so section navigation never changes the method.
