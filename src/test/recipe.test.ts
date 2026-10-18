@@ -73,4 +73,28 @@ describe("recipe and grocery choices", () => {
     expect(selected.steps).toContain("Peanuts: add 2 tbsp (listed separately in the source)");
     expect(selected.steps).toContain("Beansprouts: add 1 handful (listed separately in the source)");
   });
+  it("recomputes per-portion macros when ingredients are removed or amounts change", () => {
+    const n = { kcal: 600, protein: 24, carbs: 48, fat: 18, salt: 1, freeSugar: 2 };
+    const r: ParsedRecipe = {
+      title: "Stir fry", servings: 2,
+      ingredients: [
+        ing({ name: "Noodles", quantity: 200, unit: "g", category: "pantry", nutrition: { kcal: 600, protein: 20, carbs: 120, fat: 2 } }),
+        ing({ name: "Chicken", quantity: 300, unit: "g", category: "meat", nutrition: { kcal: 500, protein: 90, carbs: 0, fat: 14 } }),
+      ],
+      steps: ["Stir fry"], nutrition: n, healthier: null as unknown as ParsedRecipe["healthier"], changes: [],
+    };
+    // Both versions unused here; recompute from ingredients only.
+    const base = { ...r, ingredients: r.ingredients, servings: 2 };
+    expect(computedNutrition(base)).toMatchObject({ kcal: 550, protein: 55, carbs: 60, fat: 8 });
+    const lessChicken = applyAdjustments(base, { 1: 0.5 }, new Set());
+    expect(lessChicken.ingredients[1]?.quantity).toBe(150);
+    expect(computedNutrition(lessChicken).kcal).toBe(425);
+    const noChicken = applyAdjustments(base, {}, new Set([1]));
+    expect(noChicken.ingredients.map((i) => i.name)).toEqual(["Noodles"]);
+    expect(computedNutrition(noChicken).kcal).toBe(300);
+    expect(computedNutrition(noChicken).salt).toBe(1);
+    const moreNoodles = applyAdjustments(base, { 0: 2 }, new Set());
+    expect(moreNoodles.ingredients[0]?.quantity).toBe(400);
+    expect(computedNutrition(moreNoodles).kcal).toBe(850);
+  });
 });
