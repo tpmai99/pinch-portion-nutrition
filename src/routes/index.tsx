@@ -114,7 +114,11 @@ function Title({ children, sub }: { children: React.ReactNode; sub?: React.React
 
 function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
   const parse = useServerFn(parseRecipe);
-  const [mode, setMode] = useState<"link" | "text" | "image">("link");
+  const readVideo = useServerFn(readRecipeVideo);
+  const [mode, setMode] = useState<"link" | "text" | "image" | "video">("link");
+  const [video, setVideo] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [stage, setStage] = useState<string | null>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -122,16 +126,32 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const ready = mode === "link" ? /^https?:\/\//.test(url) : mode === "text" ? text.trim().length > 20 : !!image;
+  const ready = mode === "link" ? /^https?:\/\//.test(url) : mode === "text" ? text.trim().length > 20 : mode === "video" ? !!video : !!image;
 
   async function go() {
     setLoading(true); setError(null);
     try {
+      if (mode === "video") {
+        setStage("Watching the video…");
+        const { text: watched } = await readVideo({ data: { videoDataUrl: video!.dataUrl } });
+        setStage("Reading recipe…");
+        onParsed(await parse({ data: { text: watched } }));
+        return;
+      }
       const data = mode === "link" ? { url } : mode === "text" ? { text } : { imageDataUrl: image! };
       onParsed(await parse({ data }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setStage(null); }
+  }
+
+  function onVideo(f?: File) {
+    if (!f) return;
+    if (f.size > 25 * 1024 * 1024) { setError("That video is over 25 MB. Trim it or upload a shorter clip."); return; }
+    setError(null);
+    const r = new FileReader();
+    r.onload = () => setVideo({ dataUrl: r.result as string, name: f.name });
+    r.readAsDataURL(f);
   }
 
   function onFile(f?: File) {
@@ -145,15 +165,16 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
     { id: "link", label: "Link", icon: Link2 },
     { id: "text", label: "Text", icon: Type },
     { id: "image", label: "Photo", icon: ImagePlus },
+    { id: "video", label: "Video", icon: Film },
   ] as const;
 
   return (
     <section className="animate-rise">
-      <Title sub="Paste a recipe link — TikTok, Reel or YouTube — the text itself, or a screenshot.">
+      <Title sub="Paste a recipe link — TikTok, Reel or YouTube — the text itself, a screenshot or a saved video.">
         What are we <em>cooking</em> today?
       </Title>
 
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-2xl bg-secondary p-1">
+      <div className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-secondary p-1">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setMode(t.id)}
             className={cn("tactile flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm",
@@ -180,13 +201,21 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
               : (<><ImagePlus className="h-7 w-7" /><span className="text-sm">Tap to upload a screenshot</span></>)}
           </button>
         )}
+        {mode === "video" && (
+          <button onClick={() => videoRef.current?.click()}
+            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-muted text-muted-foreground">
+            {video ? <video src={video.dataUrl} muted playsInline controls className="h-full w-full object-contain" />
+              : (<><Film className="h-7 w-7" /><span className="text-sm">Tap to upload a cooking video</span><span className="text-xs">Reads on-screen text and what's said · up to 25 MB</span></>)}
+          </button>
+        )}
+        <input ref={videoRef} type="file" accept="video/*" hidden onChange={(e) => onVideo(e.target.files?.[0])} />
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
       </div>
 
       {error && <p className="mb-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       <PrimaryButton disabled={!ready || loading} onClick={go}>
-        {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> Reading recipe…</>) : (<>Pinch it <ArrowRight className="h-5 w-5" /></>)}
+        {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> {stage ?? "Reading recipe…"}</>) : (<>Pinch it <ArrowRight className="h-5 w-5" /></>)}
       </PrimaryButton>
     </section>
   );
