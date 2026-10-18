@@ -238,7 +238,7 @@ describe("optional to-taste ingredients", () => {
     expect(applyOptionalAmounts(recipe, {}).ingredients[0]?.quantity).toBeNull();
   });
   it("keeps the optional flag and per-100 g estimate when duplicate lines merge", () => {
-    const base = { title: "Pho", servings: 4, ingredients: [beef(), ing({ name: "Beef tenderloin, thinly sliced", quantity: null, unit: "", optional: true, nutrition: { kcal: 0, protein: 0, carbs: 0, fat: 0 } })], steps: ["Simmer broth"], nutrition: { kcal: 10, protein: 1, carbs: 0, fat: 0, salt: null, freeSugar: null } };
+    const base = { title: "Pho", servings: 4, ingredients: [beef(), ing({ name: "Beef tenderloin, sliced", quantity: null, unit: "", optional: true, nutrition: { kcal: 0, protein: 0, carbs: 0, fat: 0 } })], steps: ["Simmer broth"], nutrition: { kcal: 10, protein: 1, carbs: 0, fat: 0, salt: null, freeSugar: null } };
     const chosen = chooseRecipe(base as ParsedRecipe, "yummy");
     expect(chosen.ingredients).toHaveLength(1);
     expect(chosen.ingredients[0]?.optional).toBe(true);
