@@ -65,6 +65,46 @@ export function chooseRecipe(recipe: ParsedRecipe, choice: RecipeChoice): Recipe
   return { ...version, ingredients, steps: [...preparation, ...extras, ...version.steps] };
 }
 
+function normName(s: string): string {
+  return splitIngredientName(s).name.trim().toLowerCase();
+}
+
+/** Why a healthier-version ingredient differs from the original: a pure amount change
+ *  ("Decreased by 2 tbsp") when it is the same product in a different quantity, otherwise
+ *  the swap text ("Changed · was: oil"). Amounts are compared at the chosen portions. */
+export function ingredientChangeLabel(
+  ing: RecipeIngredient, version: RecipeVersion, original: RecipeVersion, portions: number,
+): string | null {
+  const name = normName(ing.name);
+  const from = ing.changedFrom ? normName(ing.changedFrom) : null;
+  const match = original.ingredients.find((o) => {
+    const on = normName(o.name);
+    return on === name || (from != null && on === from);
+  });
+  const sameProduct = match != null && normName(match.name) === name;
+  if (!match || !sameProduct) return from && from !== name ? `Changed · was: ${ing.changedFrom}` : null;
+  if (ing.quantity == null || match.quantity == null) return null;
+  const shown = (q: number, servings: number) => scaleQuantity(q, servings > 0 ? servings : 1, portions);
+  const qH = shown(ing.quantity, version.servings);
+  const qO = shown(match.quantity, original.servings);
+  if (qH == null || qO == null) return null;
+  const hu = (ing.unit || "").trim().toLowerCase();
+  const ou = (match.unit || "").trim().toLowerCase();
+  let delta = qH - qO;
+  let unit = hu || ou;
+  if (hu && ou && hu !== ou) {
+    const bh = baseQuantity(qH, hu);
+    const bo = baseQuantity(qO, ou);
+    if (!bh || !bo || bh.unit !== bo.unit) return null;
+    delta = bh.amount - bo.amount;
+    unit = bh.unit;
+  }
+  const rel = Math.abs(delta) / Math.max(Math.abs(qH), Math.abs(qO), 1e-9);
+  if (rel < 0.06) return null;
+  const abs = Math.abs(delta) >= 10 ? Math.round(Math.abs(delta)) : Math.round(Math.abs(delta) * 2) / 2;
+  return `${delta < 0 ? "Decreased" : "Increased"} by ${formatQuantity(abs)}${unit ? ` ${unit}` : ""}`;
+}
+
 /** Drops removed ingredients and scales kept ones (with their nutrition) by the user's amount multiplier. */
 export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number>, removed: Set<number>): RecipeVersion {
   const ingredients = r.ingredients.flatMap((ing, i) => {
