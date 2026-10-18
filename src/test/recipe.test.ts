@@ -204,3 +204,10 @@ describe("verified store products", () => {
     expect(verifiedProduct("jumbo", "Chicken breast")).toBeNull();
   });
 });
+describe("dutch supermarket terms", () => {
+  it("uses the common supermarket name, not a literal translation", () => {
+    expect(dutchGroceryTerm("gedroogde rijstnoedels")).toBe("rijstnoedels");
+    expect(dutchGroceryTerm("Dried rice noodles")).toBe("rijstnoedels");
+    expect(dutchGroceryTerm("rice vermicelli")).toBe("mihoen");
+  });
+});
