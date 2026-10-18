@@ -5,9 +5,14 @@ export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   salt: number | null; freeSugar: number | null;
 };
+export type IngredientNutrition = { kcal: number; protein: number; carbs: number; fat: number };
+export type RecipeIngredient = {
+  name: string; dutchName: string; quantity: number | null; unit: string; category: string;
+  changedFrom: string | null; nutrition: IngredientNutrition;
+};
 export type RecipeVersion = {
   title: string; servings: number;
-  ingredients: { name: string; dutchName: string; quantity: number | null; unit: string; category: string }[];
+  ingredients: RecipeIngredient[];
   steps: string[]; nutrition: RecipeNutrition;
 };
 export type ParsedRecipe = RecipeVersion & { healthier: RecipeVersion; changes: string[] };
@@ -25,6 +30,12 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
     } else {
       group.others.push({ quantity: ing.quantity, unit: ing.unit });
     }
+    group.ing.nutrition = {
+      kcal: group.ing.nutrition.kcal + ing.nutrition.kcal,
+      protein: group.ing.nutrition.protein + ing.nutrition.protein,
+      carbs: group.ing.nutrition.carbs + ing.nutrition.carbs,
+      fat: group.ing.nutrition.fat + ing.nutrition.fat,
+    };
   }
   const extras: string[] = [];
   const merged = [...groups.values()].map(({ ing, others }) => {
@@ -51,6 +62,39 @@ export function chooseRecipe(recipe: ParsedRecipe, choice: RecipeChoice): Recipe
     return { ...ing, dutchName: translated !== ing.name ? translated : dutchGroceryTerm(ing.dutchName) };
   });
   return { ...version, ingredients, steps: [...preparation, ...extras, ...version.steps] };
+}
+
+/** Drops removed ingredients and scales kept ones (with their nutrition) by the user's amount multiplier. */
+export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number>, removed: Set<number>): RecipeVersion {
+  const ingredients = r.ingredients.flatMap((ing, i) => {
+    if (removed.has(i)) return [];
+    const m = adjust[i] ?? 1;
+    if (m === 1) return [ing];
+    return [{
+      ...ing,
+      quantity: ing.quantity == null ? null : ing.quantity * m,
+      nutrition: {
+        kcal: ing.nutrition.kcal * m, protein: ing.nutrition.protein * m,
+        carbs: ing.nutrition.carbs * m, fat: ing.nutrition.fat * m,
+      },
+    }];
+  });
+  return { ...r, ingredients };
+}
+
+/** Per-portion macros recomputed from the ingredients actually in the meal. Salt and free sugars stay at the version estimate. */
+export function computedNutrition(r: RecipeVersion): RecipeNutrition {
+  const s = r.servings > 0 ? r.servings : 1;
+  const sum = r.ingredients.reduce(
+    (a, ing) => ({
+      kcal: a.kcal + ing.nutrition.kcal,
+      protein: a.protein + ing.nutrition.protein,
+      carbs: a.carbs + ing.nutrition.carbs,
+      fat: a.fat + ing.nutrition.fat,
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+  return { ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s, salt: r.nutrition.salt, freeSugar: r.nutrition.freeSugar };
 }
 // Planning budgets, not official per-meal recommendations: one third of
 // WHO adult daily salt limit and preferred free-sugar target at 2,000 kcal.

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { chooseRecipe, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
 import { dutchGroceryTerm, jumboBeefProduct } from "@/lib/grocery";
 import { STORES } from "@/lib/scale";
 
+const ing = (over: Partial<Parameters<typeof chooseRecipe>[0]["ingredients"][number]> = {}) =>
+  ({ name: "Onion", dutchName: "ui", quantity: 1, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 40, protein: 1, carbs: 9, fat: 0 }, ...over });
+
 describe("recipe and grocery choices", () => {
   it("moves spring-onion preparation into cooking and searches for bosui in both versions", () => {
-    const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce" }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
+    const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0 } }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
     const recipe: ParsedRecipe = { ...base, healthier: base, changes: [] };
     for (const choice of ["yummy", "healthier"] as const) {
       const selected = chooseRecipe(recipe, choice);
@@ -44,20 +47,22 @@ describe("recipe and grocery choices", () => {
   });
   it("keeps the original or switches ingredients, steps and nutrition together", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 2, freeSugar: 9 };
-    const base = { title: "Beef", servings: 2, ingredients: [{ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat" }], steps: ["Fry beef"], nutrition: n };
-    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat" }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
+    const base = { title: "Beef", servings: 2, ingredients: [{ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: null, nutrition: { kcal: 1000, protein: 80, carbs: 0, fat: 70 } }], steps: ["Fry beef"], nutrition: n };
+    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: "minced beef", nutrition: { kcal: 800, protein: 84, carbs: 0, fat: 38 } }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
     expect(chooseRecipe(r, "yummy").ingredients[0]?.name).toBe("minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.name).toBe("extra lean minced beef");
+    expect(chooseRecipe(r, "healthier").ingredients[0]?.changedFrom).toBe("minced beef");
+    expect(chooseRecipe(r, "yummy").ingredients[0]?.changedFrom).toBeNull();
     expect(chooseRecipe(r, "healthier").steps[0]).toBe("Fry extra lean beef");
     expect(chooseRecipe(r, "healthier").nutrition.kcal).toBe(400);
   });
   it("merges repeat mentions of the same ingredient into one shopping row", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 1, freeSugar: 2 };
     const base = { title: "Pad thai", servings: 2, ingredients: [
-      { name: "Peanuts", dutchName: "pinda's", quantity: 30, unit: "g", category: "pantry" },
-      { name: "Beansprouts", dutchName: "tauge", quantity: 100, unit: "g", category: "produce" },
-      { name: "Peanuts, crushed", dutchName: "pinda's", quantity: 2, unit: "tbsp", category: "pantry" },
-      { name: "beansprouts", dutchName: "tauge", quantity: 1, unit: "handful", category: "produce" },
+      ing({ name: "Peanuts", dutchName: "pinda's", quantity: 30, unit: "g", category: "pantry", nutrition: { kcal: 170, protein: 8, carbs: 5, fat: 14 } }),
+      ing({ name: "Beansprouts", dutchName: "tauge", quantity: 100, unit: "g", category: "produce", nutrition: { kcal: 30, protein: 3, carbs: 6, fat: 0 } }),
+      ing({ name: "Peanuts, crushed", dutchName: "pinda's", quantity: 2, unit: "tbsp", category: "pantry", nutrition: { kcal: 100, protein: 5, carbs: 3, fat: 8 } }),
+      ing({ name: "beansprouts", dutchName: "tauge", quantity: 1, unit: "handful", category: "produce", nutrition: { kcal: 10, protein: 1, carbs: 2, fat: 0 } }),
     ], steps: ["Stir fry"], nutrition: n };
     const r: ParsedRecipe = { ...base, healthier: base, changes: [] };
     const selected = chooseRecipe(r, "yummy");
@@ -67,5 +72,29 @@ describe("recipe and grocery choices", () => {
     expect(selected.steps).toContain("Peanuts: crushed");
     expect(selected.steps).toContain("Peanuts: add 2 tbsp (listed separately in the source)");
     expect(selected.steps).toContain("Beansprouts: add 1 handful (listed separately in the source)");
+  });
+  it("recomputes per-portion macros when ingredients are removed or amounts change", () => {
+    const n = { kcal: 600, protein: 24, carbs: 48, fat: 18, salt: 1, freeSugar: 2 };
+    const r: ParsedRecipe = {
+      title: "Stir fry", servings: 2,
+      ingredients: [
+        ing({ name: "Noodles", quantity: 200, unit: "g", category: "pantry", nutrition: { kcal: 600, protein: 20, carbs: 120, fat: 2 } }),
+        ing({ name: "Chicken", quantity: 300, unit: "g", category: "meat", nutrition: { kcal: 500, protein: 90, carbs: 0, fat: 14 } }),
+      ],
+      steps: ["Stir fry"], nutrition: n, healthier: null as unknown as ParsedRecipe["healthier"], changes: [],
+    };
+    // Both versions unused here; recompute from ingredients only.
+    const base = { ...r, ingredients: r.ingredients, servings: 2 };
+    expect(computedNutrition(base)).toMatchObject({ kcal: 550, protein: 55, carbs: 60, fat: 8 });
+    const lessChicken = applyAdjustments(base, { 1: 0.5 }, new Set());
+    expect(lessChicken.ingredients[1]?.quantity).toBe(150);
+    expect(computedNutrition(lessChicken).kcal).toBe(425);
+    const noChicken = applyAdjustments(base, {}, new Set([1]));
+    expect(noChicken.ingredients.map((i) => i.name)).toEqual(["Noodles"]);
+    expect(computedNutrition(noChicken).kcal).toBe(300);
+    expect(computedNutrition(noChicken).salt).toBe(1);
+    const moreNoodles = applyAdjustments(base, { 0: 2 }, new Set());
+    expect(moreNoodles.ingredients[0]?.quantity).toBe(400);
+    expect(computedNutrition(moreNoodles).kcal).toBe(850);
   });
 });

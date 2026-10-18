@@ -3,14 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
+  ArrowLeft, ArrowRight, Check, ChefHat, ChevronDown, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
 import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
 import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { chooseRecipe, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { jumboBeefProduct } from "@/lib/grocery";
 
 export const Route = createFileRoute("/")({
@@ -36,7 +36,11 @@ function App() {
   const [shopOpen, setShopOpen] = useState(false);
   const [choice, setChoice] = useState<RecipeChoice>("yummy");
   const [unitMode, setUnitMode] = useState<UnitMode>("metric");
+  const [adjust, setAdjust] = useState<Record<number, number>>({});
+  const [removed, setRemoved] = useState<Set<number>>(new Set());
+  const resetAdjustments = () => { setAdjust({}); setRemoved(new Set()); };
   const activeRecipe = recipe ? chooseRecipe(recipe, choice) : null;
+  const adjustedRecipe = activeRecipe ? applyAdjustments(activeRecipe, adjust, removed) : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-5 pb-16 pt-6">
@@ -52,20 +56,21 @@ function App() {
       </header>
 
       {stage === "import" && (
-        <ImportStep onParsed={(r) => { setRecipe(r); setChoice("yummy"); setPortions(r.servings); setStage("portions"); }} />
+        <ImportStep onParsed={(r) => { setRecipe(r); setChoice("yummy"); setPortions(r.servings); resetAdjustments(); setStage("portions"); }} />
       )}
       {stage === "portions" && recipe && (
         <PortionsStep recipe={recipe} portions={portions} setPortions={setPortions}
           onBack={() => setStage("import")} onNext={() => setStage("overview")} />
       )}
       {stage === "overview" && recipe && activeRecipe && (
-        <OverviewStep recipe={activeRecipe} choice={choice} onChoice={setChoice} original={recipe} portions={portions} onBack={() => setStage("portions")}
-          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode} />
+        <OverviewStep recipe={activeRecipe} choice={choice} onChoice={(c) => { setChoice(c); resetAdjustments(); }} original={recipe} portions={portions} onBack={() => setStage("portions")}
+          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode}
+          adjust={adjust} removed={removed} onAdjust={(i, m) => setAdjust((a) => ({ ...a, [i]: m }))} onRemove={(i, on) => setRemoved((s) => { const n = new Set(s); on ? n.add(i) : n.delete(i); return n; })} />
       )}
       {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
-      {shopOpen && activeRecipe && (
-        <ShopSheet recipe={activeRecipe} portions={portions} onClose={() => setShopOpen(false)}
+      {shopOpen && adjustedRecipe && (
+        <ShopSheet recipe={adjustedRecipe} portions={portions} onClose={() => setShopOpen(false)}
           onCook={() => { setShopOpen(false); setStage("cook"); }} unitMode={unitMode} onUnitMode={setUnitMode} />
       )}
     </main>
@@ -253,30 +258,37 @@ function MacroCard({ recipe }: { recipe: RecipeVersion }) {
   );
 }
 
-function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number, mode: UnitMode) {
-  return convertAmount(ing.name, ing.quantity, ing.unit, from, to, mode);
+function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number, mode: UnitMode, multiplier = 1) {
+  const q = ing.quantity == null ? null : ing.quantity * multiplier;
+  return convertAmount(ing.name, q, ing.unit, from, to, mode);
 }
 
-function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode }: {
+function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode,
+  adjust, removed, onAdjust, onRemove }: {
   recipe: RecipeVersion; choice: RecipeChoice; onChoice: (choice: RecipeChoice) => void; original: ParsedRecipe;
   portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
   unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
+  adjust: Record<number, number>; removed: Set<number>;
+  onAdjust: (i: number, m: number) => void; onRemove: (i: number, on: boolean) => void;
 }) {
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [open, setOpen] = useState<number | null>(null);
   const warnings = nutritionWarnings(recipe.nutrition);
+  const shown = applyAdjustments(recipe, adjust, removed);
+  const tweaked = removed.size > 0 || Object.values(adjust).some((m) => m !== 1);
   return (
     <section className="animate-rise">
       <Back onClick={onBack} />
       <Title sub={`Scaled for ${portions} portion${portions > 1 ? "s" : ""}`}>{recipe.title}</Title>
       <div className="mb-4 grid grid-cols-2 gap-2" role="group" aria-label="Recipe version">
-        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setChecked(new Set()); }}>Same as original · 1:1</Button>
-        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Modify to healthier</Button>
+        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setOpen(null); }}>Same as original · 1:1</Button>
+        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setOpen(null); }}>Modify to healthier</Button>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">{choice === "yummy"
         ? "Original ingredients and method from your source, with quantities scaled to your chosen portions. No healthier substitutions."
         : "Suggested changes by Pinch, not the original recipe. Cooking steps, estimated nutrition and shopping items reflect this version."}</p>
       {choice === "healthier" && <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{original.changes.map((change, i) => <li key={i}>{change}</li>)}</ul>}
-      <MacroCard recipe={recipe} />
+      <MacroCard recipe={{ ...recipe, nutrition: computedNutrition(shown) }} />
+      {tweaked && <p className="-mt-3 mb-4 text-xs text-muted-foreground">Macros include your changes. Salt and free-sugar estimates stay at the recipe's level.</p>}
       <div className="mb-5 text-sm text-muted-foreground">
         <p>Estimated per portion: salt {recipe.nutrition.salt == null ? "unknown" : `${recipe.nutrition.salt.toFixed(1)} g`} · free sugars {recipe.nutrition.freeSugar == null ? "unknown" : `${recipe.nutrition.freeSugar.toFixed(1)} g`}</p>
         <p className="mt-1 text-xs">Meal planning budgets: 1.7 g salt and 8.3 g free sugars (one third of WHO adult daily guidance: less than 5 g salt; preferably 25 g free sugars at 2,000 kcal). Not official per-meal limits or personalised advice. All nutrition is estimated.</p>
@@ -284,7 +296,7 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
       </div>
       {(warnings.salt || warnings.freeSugar) && <div role="alert" className="mb-5 space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
         <p>This portion is above the meal planning budget for {warnings.salt && warnings.freeSugar ? "salt and free sugars" : warnings.salt ? "salt" : "free sugars"}.</p>
-        {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
+        {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setOpen(null); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
       </div>}
 
       <div className="mb-3 flex items-center justify-between">
@@ -300,20 +312,41 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         </div>
       </div>
       {unitMode === "cups" && <p className="mb-3 text-xs text-muted-foreground">Cup amounts are approximate conversions; grams follow the recipe exactly.</p>}
+      <p className="mb-3 text-xs text-muted-foreground">Tap an ingredient to eat more or less of it, or skip it — the macros above update.</p>
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
-          const on = checked.has(i);
+          const isRemoved = removed.has(i);
+          const m = adjust[i] ?? 1;
           return (
-            <li key={i}>
-              <button onClick={() => { const s = new Set(checked); on ? s.delete(i) : s.add(i); setChecked(s); }}
+            <li key={i} className={cn(isRemoved && "opacity-60")}>
+              <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-                <span className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-lg border",
-                  on ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
-                  {on && <Check className="h-4 w-4" />}
+                <span className="flex flex-1 flex-col gap-0.5">
+                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
+                  {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                  {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
+                  {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
-                <span className={cn("flex-1", on && "text-muted-foreground line-through")}>{ing.name}</span>
-                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open === i && "rotate-180")} />
               </button>
+              {open === i && (
+                <div className="border-t border-border px-4 py-3">
+                  <p className="mb-2 text-xs text-muted-foreground">How much do you want to eat?</p>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {[0.5, 1, 1.5, 2].map((v) => (
+                      <button key={v} aria-pressed={m === v} onClick={() => onAdjust(i, v)}
+                        className={cn("rounded-full border px-3 py-1 text-xs",
+                          m === v ? "border-accent bg-accent text-accent-foreground" : "border-border text-muted-foreground")}>
+                        ×{v === 0.5 ? "½" : v === 1.5 ? "1½" : v}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => onRemove(i, !isRemoved)} className="text-xs text-muted-foreground underline">
+                    {isRemoved ? "Add back to this meal" : "I'll skip this ingredient"}
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}
@@ -381,7 +414,7 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode) }))}
+          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode), changedFrom: m.changedFrom ?? null }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -429,7 +462,10 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
                         on ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
                         {on && <Check className="h-4 w-4" />}
                       </span>
-                      <span className="flex-1">{ing.name}</span>
+                      <span className="flex flex-1 flex-col gap-0.5">
+                        <span>{ing.name}</span>
+                        {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                      </span>
                       <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
                     </button>
                   </li>
@@ -610,7 +646,7 @@ function useProductImage(name: string) {
 }
 
 function ProductRow({ item, store, mode, done, onToggle }: {
-  item: { name: string; dutchName: string; category: string; qty: string }; store: (typeof STORES)[number];
+  item: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }; store: (typeof STORES)[number];
   mode: "online" | "visit"; done: boolean; onToggle: () => void;
 }) {
   const img = useProductImage(item.name);
@@ -627,6 +663,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
       </div>
       <div className="min-w-0 flex-1">
         <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
+        {item.changedFrom && <div className="text-xs text-accent">Changed · was: {item.changedFrom}</div>}
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
         {mode === "online" && <>
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
@@ -652,7 +689,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
 
 function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
   store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string; address: string | null;
-  items: { name: string; dutchName: string; category: string; qty: string }[]; onBack: () => void; onCook: () => void;
+  items: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }[]; onBack: () => void; onCook: () => void;
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
