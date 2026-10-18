@@ -150,8 +150,9 @@ export const parseRecipe = createServerFn({ method: "POST" })
     const { streamText, Output, NoObjectGeneratedError } = await import("ai");
 
     let source = data.text ?? "";
-    if (data.url) source = `${await textFromUrl(data.url)}\n\n${source}`;
-    if (!source.trim() && !data.imageDataUrl) throw new Error("Add a recipe first.");
+    const linkImages: string[] = [];
+    if (data.url) source = `${await textFromUrl(data.url, linkImages)}\n\n${source}`;
+    if (!source.trim() && !data.imageDataUrl && !linkImages.length) throw new Error("Add a recipe first.");
 
     const provider = createOpenAI({
       baseURL: "https://ai.gateway.lovable.dev/v1",
@@ -170,6 +171,7 @@ export const parseRecipe = createServerFn({ method: "POST" })
       },
     ];
     if (data.imageDataUrl) content.push({ type: "image", image: data.imageDataUrl });
+    for (const image of linkImages) content.push({ type: "image", image });
 
     const result = streamText({
       model: provider.responses("openai/gpt-6-astra"),
