@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAdjustments, chooseRecipe, computedNutrition, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
 import { dutchGroceryTerm, jumboBeefProduct } from "@/lib/grocery";
 import { STORES } from "@/lib/scale";
 
@@ -96,5 +96,28 @@ describe("recipe and grocery choices", () => {
     const moreNoodles = applyAdjustments(base, { 0: 2 }, new Set());
     expect(moreNoodles.ingredients[0]?.quantity).toBe(400);
     expect(computedNutrition(moreNoodles).kcal).toBe(850);
+  });
+  it("labels same-ingredient amount changes differently from real swaps", () => {
+    const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 1, freeSugar: 2 };
+    const base = { title: "Stir fry", servings: 2, ingredients: [
+      ing({ name: "Vegetable oil", dutchName: "zonnebloemolie", quantity: 3, unit: "tbsp", category: "pantry", nutrition: { kcal: 360, protein: 0, carbs: 0, fat: 42 } }),
+      ing({ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat", nutrition: { kcal: 900, protein: 70, carbs: 0, fat: 60 } }),
+    ], steps: ["Stir fry"], nutrition: n };
+    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [
+      ing({ name: "Vegetable oil", dutchName: "zonnebloemolie", quantity: 1, unit: "tbsp", category: "pantry", nutrition: { kcal: 120, protein: 0, carbs: 0, fat: 14 } }),
+      ing({ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: "minced beef", nutrition: { kcal: 700, protein: 75, carbs: 0, fat: 30 } }),
+    ] }, changes: [] };
+    const h = chooseRecipe(r, "healthier");
+    const oil = h.ingredients[0];
+    const beef = h.ingredients[1];
+    expect(oil && ingredientChangeLabel(oil, h, r, 2)).toBe("Decreased by 30 ml");
+    expect(beef && ingredientChangeLabel(beef, h, r, 2)).toBe("Changed · was: minced beef");
+    // The same amount in both versions gets no label, and the swap text scales with portions.
+    const y = chooseRecipe(r, "yummy");
+    const yOil = y.ingredients[0];
+    expect(yOil && ingredientChangeLabel(yOil, y, r, 2)).toBeNull();
+    expect(beef && ingredientChangeLabel(beef, h, r, 4)).toBe("Changed · was: minced beef");
+    // Oil decrease scales with portions: 6 tbsp vs 2 tbsp at 4 portions = 60 ml.
+    expect(oil && ingredientChangeLabel(oil, h, r, 4)).toBe("Decreased by 60 ml");
   });
 });

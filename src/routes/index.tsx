@@ -10,7 +10,7 @@ import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
 import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { applyAdjustments, chooseRecipe, computedNutrition, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { jumboBeefProduct } from "@/lib/grocery";
 
 export const Route = createFileRoute("/")({
@@ -69,8 +69,8 @@ function App() {
       )}
       {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
-      {shopOpen && adjustedRecipe && (
-        <ShopSheet recipe={adjustedRecipe} portions={portions} onClose={() => setShopOpen(false)}
+      {shopOpen && recipe && adjustedRecipe && (
+        <ShopSheet recipe={adjustedRecipe} original={recipe} portions={portions} onClose={() => setShopOpen(false)}
           onCook={() => { setShopOpen(false); setStage("cook"); }} unitMode={unitMode} onUnitMode={setUnitMode} />
       )}
     </main>
@@ -317,13 +317,14 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         {recipe.ingredients.map((ing, i) => {
           const isRemoved = removed.has(i);
           const m = adjust[i] ?? 1;
+          const changeLabel = ingredientChangeLabel(ing, recipe, original, portions);
           return (
             <li key={i} className={cn(isRemoved && "opacity-60")}>
               <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
-                  {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                  {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                   {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
                   {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
@@ -363,8 +364,8 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
 
 /* ---------- 4. shop sheet ---------- */
 
-function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: {
-  recipe: RecipeVersion; portions: number; onClose: () => void; onCook: () => void;
+function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUnitMode }: {
+  recipe: RecipeVersion; original: RecipeVersion; portions: number; onClose: () => void; onCook: () => void;
   unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
 }) {
   const [step, setStep] = useState<"items" | "pref" | "stores">("items");
@@ -414,7 +415,7 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode), changedFrom: m.changedFrom ?? null }))}
+          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode), changeLabel: ingredientChangeLabel(m, recipe, original, portions) ?? null }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -453,6 +454,7 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
             <ul className="mb-6 space-y-2">
               {recipe.ingredients.map((ing, i) => {
                 const on = missing.has(i);
+                const changeLabel = ingredientChangeLabel(ing, recipe, original, portions);
                 return (
                   <li key={i}>
                     <button onClick={() => { const s = new Set(missing); on ? s.delete(i) : s.add(i); setMissing(s); }}
@@ -464,7 +466,7 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
                       </span>
                       <span className="flex flex-1 flex-col gap-0.5">
                         <span>{ing.name}</span>
-                        {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                        {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                       </span>
                       <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
                     </button>
@@ -646,7 +648,7 @@ function useProductImage(name: string) {
 }
 
 function ProductRow({ item, store, mode, done, onToggle }: {
-  item: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }; store: (typeof STORES)[number];
+  item: { name: string; dutchName: string; category: string; qty: string; changeLabel: string | null }; store: (typeof STORES)[number];
   mode: "online" | "visit"; done: boolean; onToggle: () => void;
 }) {
   const img = useProductImage(item.name);
@@ -663,7 +665,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
       </div>
       <div className="min-w-0 flex-1">
         <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
-        {item.changedFrom && <div className="text-xs text-accent">Changed · was: {item.changedFrom}</div>}
+        {item.changeLabel && <div className="text-xs text-accent">{item.changeLabel}</div>}
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
         {mode === "online" && <>
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
@@ -689,7 +691,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
 
 function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
   store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string; address: string | null;
-  items: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }[]; onBack: () => void; onCook: () => void;
+  items: { name: string; dutchName: string; category: string; qty: string; changeLabel: string | null }[]; onBack: () => void; onCook: () => void;
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
