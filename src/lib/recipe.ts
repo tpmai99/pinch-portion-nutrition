@@ -5,9 +5,14 @@ export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   salt: number | null; freeSugar: number | null;
 };
+export type IngredientNutrition = { kcal: number; protein: number; carbs: number; fat: number };
+export type RecipeIngredient = {
+  name: string; dutchName: string; quantity: number | null; unit: string; category: string;
+  changedFrom: string | null; nutrition: IngredientNutrition;
+};
 export type RecipeVersion = {
   title: string; servings: number;
-  ingredients: { name: string; dutchName: string; quantity: number | null; unit: string; category: string; changedFrom?: string | null | undefined }[];
+  ingredients: RecipeIngredient[];
   steps: string[]; nutrition: RecipeNutrition;
 };
 export type ParsedRecipe = RecipeVersion & { healthier: RecipeVersion; changes: string[] };
