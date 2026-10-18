@@ -70,6 +70,14 @@ export function gramsPerCup(name: string): number | null {
   return null;
 }
 
+/** Base amount for comparing two quantities: grams for mass units, ml for volume units, null otherwise. */
+export function baseQuantity(quantity: number, unit: string): { unit: "g" | "ml"; amount: number } | null {
+  const u = (unit || "").trim().toLowerCase();
+  if (MASS_G[u]) return { unit: "g", amount: quantity * MASS_G[u] };
+  if (VOL_ML[u]) return { unit: "ml", amount: quantity * VOL_ML[u] };
+  return null;
+}
+
 function gramsText(g: number): string {
   const r = g >= 500 ? Math.round(g / 10) * 10 : g >= 100 ? Math.round(g / 5) * 5 : Math.round(g);
   return `${r} g`;
