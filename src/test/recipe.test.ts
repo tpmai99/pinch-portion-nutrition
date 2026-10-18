@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { chooseRecipe, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
 import { dutchGroceryTerm, jumboBeefProduct } from "@/lib/grocery";
 import { STORES } from "@/lib/scale";
+
+const ing = (over: Partial<Parameters<typeof chooseRecipe>[0]["ingredients"][number]> = {}) =>
+  ({ name: "Onion", dutchName: "ui", quantity: 1, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 40, protein: 1, carbs: 9, fat: 0 }, ...over });
 
 describe("recipe and grocery choices", () => {
   it("moves spring-onion preparation into cooking and searches for bosui in both versions", () => {

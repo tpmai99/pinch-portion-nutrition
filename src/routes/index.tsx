@@ -312,6 +312,7 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         </div>
       </div>
       {unitMode === "cups" && <p className="mb-3 text-xs text-muted-foreground">Cup amounts are approximate conversions; grams follow the recipe exactly.</p>}
+      <p className="mb-3 text-xs text-muted-foreground">Tap an ingredient to eat more or less of it, or skip it — the macros above update.</p>
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
           const isRemoved = removed.has(i);
