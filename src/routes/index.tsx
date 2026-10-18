@@ -137,7 +137,7 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
 
   return (
     <section className="animate-rise">
-      <Title sub="Paste a recipe link, TikTok or Reel, the text itself, or a screenshot.">
+      <Title sub="Paste a recipe link — TikTok, Reel or YouTube — the text itself, or a screenshot.">
         What are we <em>cooking</em> today?
       </Title>
 
@@ -153,7 +153,7 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
 
       <div className="mb-5 rounded-3xl border border-border bg-card p-4 shadow-soft">
         {mode === "link" && (
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://tiktok.com/@…/video/…"
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="TikTok, Reel or YouTube link…"
             className="w-full bg-transparent py-2 text-base outline-none placeholder:text-muted-foreground" />
         )}
         {mode === "text" && (

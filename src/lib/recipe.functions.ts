@@ -42,7 +42,33 @@ function stripHtml(html: string) {
 }
 
 async function textFromUrl(url: string): Promise<string> {
-  const host = new URL(url).hostname;
+  const host = new URL(url).hostname.replace(/^www\./, "");
+  if (host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be") {
+    let parts: string[] = [];
+    // oEmbed always works and gives title + channel.
+    try {
+      const oe = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+      if (oe.ok) {
+        const j = (await oe.json()) as { title?: string; author_name?: string };
+        if (j.title) parts.push(`YouTube video "${j.title}" by ${j.author_name ?? "creator"}`);
+      }
+    } catch { /* fall through to description */ }
+    // The watch page's description meta usually holds the recipe text.
+    try {
+      const r = await fetch(url.replace("youtu.be/", "www.youtube.com/watch?v="), {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; PinchBot/1.0)", Accept: "text/html", "Accept-Language": "en" },
+      });
+      if (r.ok) {
+        const html = await r.text();
+        const desc =
+          html.match(/<meta[^>]+(?:property|name)="(?:og:)?description"[^>]+content="([^"]*)"/i)?.[1] ??
+          html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
+        if (desc) parts.push("Video description:\n" + desc.replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
+      }
+    } catch { /* title alone may be enough */ }
+    if (parts.length) return parts.join("\n\n");
+    throw new Error("Couldn't read that YouTube video. Try pasting the recipe text instead.");
+  }
   if (host.includes("tiktok.com")) {
     const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
     if (r.ok) {
