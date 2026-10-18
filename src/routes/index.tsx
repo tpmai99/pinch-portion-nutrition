@@ -344,7 +344,7 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         </div>
       </div>
       {unitMode === "cups" && <p className="mb-3 text-xs text-muted-foreground">Cup amounts are approximate conversions; grams follow the recipe exactly.</p>}
-      <p className="mb-3 text-xs text-muted-foreground">Tap an ingredient to eat more or less of it, or skip it — the macros above update.</p>
+      <p className="mb-3 text-xs text-muted-foreground">Estimated ingredient kcal per portion</p>
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
           const isRemoved = removed.has(i);
@@ -354,13 +354,16 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
             <li key={i} className={cn(isRemoved && "opacity-60")}>
               <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-                <span className="flex flex-1 flex-col gap-0.5">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
                   {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                   {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
                   {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
-                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
+                <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
+                  <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
+                  <span className="text-xs font-medium text-foreground">{isRemoved ? "0 kcal" : Number.isFinite(ing.nutrition?.kcal) ? `≈ ${Math.round(ing.nutrition.kcal * m / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
+                </span>
                 <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open === i && "rotate-180")} />
               </button>
               {open === i && (
@@ -471,6 +474,7 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
           <>
             <h2 className="mb-1 font-display text-3xl">What do you need to buy?</h2>
             <p className="mb-3 text-sm text-muted-foreground">Select only the missing items.</p>
+            <p className="mb-3 text-xs text-muted-foreground">Estimated ingredient kcal per portion</p>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Amounts in</p>
               <div className="flex rounded-full bg-secondary p-1" role="group" aria-label="Measurement unit">
@@ -500,7 +504,10 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
                         <span>{ing.name}</span>
                         {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                       </span>
-                      <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
+                      <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
+                        <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
+                        <span className="text-xs font-medium text-foreground">{Number.isFinite(ing.nutrition?.kcal) ? `≈ ${Math.round(ing.nutrition.kcal / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
+                      </span>
                     </button>
                   </li>
                 );
