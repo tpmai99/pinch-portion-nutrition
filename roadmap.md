@@ -3,3 +3,4 @@
 - [ ] Test the shopping flow and note any unmatched-product limitations.
 - [ ] Add Yummy/original and Healthier ingredient choices without claiming unverified calorie reductions.
 - [ ] Translate known grocery searches to Dutch and allow correction of unfamiliar ingredients.
+- [ ] Estimate salt/free sugars per portion, warn against clearly labeled meal budgets, and offer the healthier version.
