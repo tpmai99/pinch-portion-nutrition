@@ -1,3 +1,4 @@
+import { findNearbyStores, type NearbyStore } from "@/lib/stores.functions";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -6,7 +7,7 @@ import {
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
 import {
-  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, storeDistance, type Preference,
+  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, type Preference,
 } from "@/lib/scale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -327,18 +328,33 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
   const [selected, setSelected] = useState<string | null>(null);
 
   const missingItems = recipe.ingredients.filter((_, i) => missing.has(i));
+  const [nearby, setNearby] = useState<Record<string, NearbyStore>>({});
+  const [lookup, setLookup] = useState<"idle" | "loading" | "error">("idle");
+  const [lookupError, setLookupError] = useState("");
+  useEffect(() => {
+    const q = loc.trim();
+    if (!pref || !/^(\d{4}\s?[A-Z]{2}|-?\d{1,2}\.\d+,\s?-?\d{1,3}\.\d+)$/i.test(q)) { setNearby({}); setLookup("idle"); return; }
+    let live = true;
+    setLookup("loading");
+    const t = setTimeout(() => {
+      findNearbyStores({ data: { loc: q, stores: STORES.filter((s) => s.tier === pref).map((s) => s.name) } })
+        .then((r) => { if (live) { setNearby(Object.fromEntries(r.stores.map((x) => [x.name, x]))); setLookup("idle"); } })
+        .catch((e) => { if (live) { setLookupError(e instanceof Error ? e.message : "Lookup failed"); setLookup("error"); } });
+    }, 500);
+    return () => { live = false; clearTimeout(t); };
+  }, [loc, pref]);
   const stores = useMemo(() => {
-    if (!loc || !pref) return [];
+    if (!loc || !pref || lookup === "loading") return [];
     return STORES.filter((s) => s.tier === pref)
-      .map((s) => ({ ...s, km: storeDistance(loc, s.id), cost: estimateCart(missingItems.map((m) => m.category), s) }))
-      .sort((a, b) => a.km - b.km);
-  }, [loc, pref, missingItems]);
+      .map((s) => ({ ...s, km: nearby[s.name]?.km ?? null, address: nearby[s.name]?.address ?? null, cost: estimateCart(missingItems.map((m) => m.category), s) }))
+      .sort((a, b) => (a.km ?? 999) - (b.km ?? 999));
+  }, [loc, pref, missingItems, nearby, lookup]);
 
   function useGps() {
     if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (p) => { setLoc(`${p.coords.latitude.toFixed(2)},${p.coords.longitude.toFixed(2)}`); setLocating(false); },
+      (p) => { setLoc(`${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`); setLocating(false); },
       () => setLocating(false),
     );
   }
@@ -351,7 +367,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
+          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -433,6 +449,8 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
               </button>
             </div>
 
+            {lookup === "loading" && <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Finding the nearest stores…</p>}
+            {lookup === "error" && <p className="mb-4 text-sm text-destructive">{lookupError}</p>}
             {stores.length > 0 && (
               <>
                 <ul className="mb-3 space-y-2">
@@ -443,7 +461,8 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                           selected === s.id ? "border-accent bg-card shadow-lift" : "border-border bg-card")}>
                         <div className="min-w-0">
                           <div className="font-medium">{s.name}</div>
-                          <div className="text-sm text-muted-foreground">{s.km} km away</div>
+                          <div className="text-sm text-muted-foreground">{s.km != null ? `${s.km} km away` : "No store found nearby"}</div>
+                          {s.address && <div className="truncate text-xs text-muted-foreground">{s.address}</div>}
                           <span className={cn("mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
                             s.cart === "auto" ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground")}>
                             {s.cart === "auto" ? <Check className="h-3 w-3" /> : <Info className="h-3 w-3" />}
@@ -458,7 +477,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                     </li>
                   ))}
                 </ul>
-                <p className="mb-4 text-xs text-muted-foreground">Distances and prices are estimates.</p>
+                <p className="mb-4 text-xs text-muted-foreground">Nearest branch from Google Maps, straight-line distance. Cart prices are estimates.</p>
                 {store && store.cart !== "auto" && (
                   <div className="mb-4 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
@@ -605,13 +624,13 @@ function ProductRow({ item, store, mode, done, onToggle }: {
   );
 }
 
-function ShopList({ store, mode, loc, items, onBack, onCook }: {
-  store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string;
+function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
+  store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string; address: string | null;
   items: { name: string; dutchName: string; category: string; qty: string }[]; onBack: () => void; onCook: () => void;
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
-  const maps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(loc)}&destination=${encodeURIComponent(`${store.name} supermarket near ${loc}`)}&travelmode=walking`;
+  const maps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(loc)}&destination=${encodeURIComponent(address ? `${store.name}, ${address}` : `${store.name} supermarket near ${loc}`)}&travelmode=walking`;
   const [mapCopied, setMapCopied] = useState(false);
   return (
     <>
