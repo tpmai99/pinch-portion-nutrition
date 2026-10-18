@@ -8,7 +8,7 @@ const ing = (over: Partial<Parameters<typeof chooseRecipe>[0]["ingredients"][num
 
 describe("recipe and grocery choices", () => {
   it("moves spring-onion preparation into cooking and searches for bosui in both versions", () => {
-    const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce" }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
+    const base = { title: "Onions", servings: 2, ingredients: [{ name: "Spring onions, cut into 3 cm pieces, whites and greens separated (or a handful of garlic chives)", dutchName: "bosui, gesneden", quantity: 3, unit: "pc", category: "produce", changedFrom: null, nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0 } }], steps: ["Fry onions"], nutrition: { kcal: 30, protein: 1, carbs: 5, fat: 0, salt: null, freeSugar: null } };
     const recipe: ParsedRecipe = { ...base, healthier: base, changes: [] };
     for (const choice of ["yummy", "healthier"] as const) {
       const selected = chooseRecipe(recipe, choice);
@@ -47,8 +47,8 @@ describe("recipe and grocery choices", () => {
   });
   it("keeps the original or switches ingredients, steps and nutrition together", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 2, freeSugar: 9 };
-    const base = { title: "Beef", servings: 2, ingredients: [{ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat" }], steps: ["Fry beef"], nutrition: n };
-    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: "minced beef" }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
+    const base = { title: "Beef", servings: 2, ingredients: [{ name: "minced beef", dutchName: "rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: null, nutrition: { kcal: 1000, protein: 80, carbs: 0, fat: 70 } }], steps: ["Fry beef"], nutrition: n };
+    const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: "minced beef", nutrition: { kcal: 800, protein: 84, carbs: 0, fat: 38 } }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
     expect(chooseRecipe(r, "yummy").ingredients[0]?.name).toBe("minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.name).toBe("extra lean minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.changedFrom).toBe("minced beef");
