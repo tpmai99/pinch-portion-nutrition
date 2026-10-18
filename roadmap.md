@@ -1,0 +1,3 @@
+- [ ] Correct Jumbo's broken search link and verify grocery search behavior.
+- [ ] Check the supplied Jumbo minced-beef product page and use it for matching ingredients.
+- [ ] Test the shopping flow and note any unmatched-product limitations.
