@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Fix Facebook post extraction so topping ingredients, including beef, are not lost behind shortened previews
+- [x] Fix Facebook post extraction so topping ingredients, including beef, are not lost behind shortened previews; verified the exact shared link includes beef and noodles
 
 - [x] Verify saved-reel analysis of on-screen text and narration, and let users review extracted ingredients and instructions before importing
 
