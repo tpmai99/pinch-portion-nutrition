@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
+import { applyAdjustments, applyOptionalAmounts, chooseRecipe, computedNutrition, ingredientChangeLabel, MEAL_BUDGET, nutritionWarnings, type ParsedRecipe } from "@/lib/recipe";
 import { dutchGroceryTerm, jumboBeefProduct } from "@/lib/grocery";
 import { STORES } from "@/lib/scale";
 
@@ -219,5 +219,29 @@ describe("dutch supermarket terms", () => {
     expect(dutchGroceryTerm("gedroogde rijstnoedels")).toBe("rijstnoedels");
     expect(dutchGroceryTerm("Dried rice noodles")).toBe("rijstnoedels");
     expect(dutchGroceryTerm("rice vermicelli")).toBe("mihoen");
+  });
+});
+
+describe("optional to-taste ingredients", () => {
+  const beef = () => ing({ name: "Beef tenderloin", quantity: null, unit: "", optional: true, nutrition: { kcal: 0, protein: 0, carbs: 0, fat: 0, per100g: { kcal: 150, protein: 22, carbs: 0, fat: 7 } } });
+  it("estimates an optional ingredient from the grams the user adds", () => {
+    const recipe = { title: "Pho", servings: 2, ingredients: [beef()], steps: [], nutrition: { kcal: 5, protein: 1, carbs: 0, fat: 0, salt: null, freeSugar: null } };
+    const added = applyOptionalAmounts(recipe, { 0: 200 });
+    expect(added.ingredients[0]?.quantity).toBe(200);
+    expect(added.ingredients[0]?.unit).toBe("g");
+    expect(added.ingredients[0]?.nutrition.kcal).toBe(300);
+    expect(computedNutrition(added).kcal).toBe(150);
+    // The amount multiplier then applies on top of the added grams.
+    const scaled = applyAdjustments(added, { 0: 2 }, new Set());
+    expect(scaled.ingredients[0]?.nutrition.kcal).toBe(600);
+    // Clearing the amount returns to the to-taste state.
+    expect(applyOptionalAmounts(recipe, {}).ingredients[0]?.quantity).toBeNull();
+  });
+  it("keeps the optional flag and per-100 g estimate when duplicate lines merge", () => {
+    const base = { title: "Pho", servings: 4, ingredients: [beef(), ing({ name: "Beef tenderloin, sliced", quantity: null, unit: "", optional: true, nutrition: { kcal: 0, protein: 0, carbs: 0, fat: 0 } })], steps: ["Simmer broth"], nutrition: { kcal: 10, protein: 1, carbs: 0, fat: 0, salt: null, freeSugar: null } };
+    const chosen = chooseRecipe(base as ParsedRecipe, "yummy");
+    expect(chosen.ingredients).toHaveLength(1);
+    expect(chosen.ingredients[0]?.optional).toBe(true);
+    expect(chosen.ingredients[0]?.nutrition.per100g?.kcal).toBe(150);
   });
 });

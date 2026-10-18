@@ -22,3 +22,5 @@
 - [x] Recalculate per-portion macros when the user removes or rescales ingredients on the overview screen
 - [x] Let the user adjust ingredient amounts (eat more/less); adjustments update the macros and shopping amounts
 - [x] Healthier-version badges: same-ingredient amount changes read "Decreased/Increased by X g or ml"; real swaps keep "Changed · was: …"
+
+- [ ] Treat "to taste" / unquantified ingredients as optional; let the user add grams and update kcal and shopping from that amount

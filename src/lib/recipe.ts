@@ -12,7 +12,10 @@ export type IngredientNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   // Optional only for recipes imported before per-ingredient estimates existed.
   salt?: number | null; freeSugar?: number | null;
+  // Per-100 g macros, so Pinch can estimate an amount the user enters for unquantified items.
+  per100g?: Per100g | null;
 };
+export type Per100g = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
 
 function addEstimate(a: number | null | undefined, b: number | null | undefined): number | null {
   return a == null || b == null ? null : a + b;
@@ -20,6 +23,8 @@ function addEstimate(a: number | null | undefined, b: number | null | undefined)
 export type RecipeIngredient = {
   name: string; dutchName: string; quantity: number | null; unit: string; category: string;
   changedFrom: string | null; nutrition: IngredientNutrition;
+  // The source marks it optional / to taste, or no amount is stated; the user can add grams.
+  optional?: boolean;
 };
 export type RecipeVersion = {
   title: string; servings: number;
@@ -41,6 +46,7 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
     } else {
       group.others.push({ quantity: ing.quantity, unit: ing.unit });
     }
+    group.ing.optional = !!group.ing.optional || !!ing.optional;
     group.ing.nutrition = {
       kcal: group.ing.nutrition.kcal + ing.nutrition.kcal,
       protein: group.ing.nutrition.protein + ing.nutrition.protein,
@@ -48,6 +54,7 @@ function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: 
       fat: group.ing.nutrition.fat + ing.nutrition.fat,
       salt: addEstimate(group.ing.nutrition.salt, ing.nutrition.salt),
       freeSugar: addEstimate(group.ing.nutrition.freeSugar, ing.nutrition.freeSugar),
+      per100g: group.ing.nutrition.per100g ?? ing.nutrition.per100g ?? null,
     };
   }
   const extras: string[] = [];
@@ -139,6 +146,32 @@ export function ingredientChangeLabel(
   if (rel < 0.06) return null;
   const abs = Math.abs(delta) >= 10 ? Math.round(Math.abs(delta)) : Math.round(Math.abs(delta) * 2) / 2;
   return `${delta < 0 ? "Decreased" : "Increased"} by ${formatQuantity(abs)}${unit ? ` ${unit}` : ""}`;
+}
+
+/** Applies user-entered gram amounts for unquantified (optional) ingredients and estimates
+ *  their macros from the per-100 g values; when per-100 g is unknown the model's full-amount
+ *  estimate is kept. Everything else passes through unchanged. */
+export function applyOptionalAmounts(r: RecipeVersion, grams: Record<number, number>): RecipeVersion {
+  if (!Object.keys(grams).length) return r;
+  const ingredients = r.ingredients.map((ing, i) => {
+    const g = grams[i];
+    if (g == null || !Number.isFinite(g) || g <= 0) return ing;
+    const p = ing.nutrition?.per100g;
+    const from = (v: number | null | undefined, fallback: number) => (v == null ? fallback : (v * g) / 100);
+    return {
+      ...ing,
+      quantity: g,
+      unit: "g",
+      nutrition: {
+        ...ing.nutrition,
+        kcal: from(p?.kcal, ing.nutrition.kcal),
+        protein: from(p?.protein, ing.nutrition.protein),
+        carbs: from(p?.carbs, ing.nutrition.carbs),
+        fat: from(p?.fat, ing.nutrition.fat),
+      },
+    };
+  });
+  return { ...r, ingredients };
 }
 
 /** Drops removed ingredients and scales kept ones (with their nutrition) by the user's amount multiplier. */

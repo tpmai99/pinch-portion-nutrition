@@ -10,7 +10,7 @@ import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
 import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
+import { applyAdjustments, applyOptionalAmounts, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { verifiedProduct } from "@/lib/grocery";
 import { CookingGuide } from "@/components/CookingGuide";
 import { isTikTokRecipeLink } from "@/lib/recipe-links";
@@ -42,9 +42,11 @@ function App() {
   const [unitMode, setUnitMode] = useState<UnitMode>("metric");
   const [adjust, setAdjust] = useState<Record<number, number>>({});
   const [removed, setRemoved] = useState<Set<number>>(new Set());
-  const resetAdjustments = () => { setAdjust({}); setRemoved(new Set()); };
+  const [grams, setGrams] = useState<Record<number, number>>({});
+  const resetAdjustments = () => { setAdjust({}); setRemoved(new Set()); setGrams({}); };
   const activeRecipe = recipe ? chooseRecipe(recipe, choice) : null;
-  const adjustedRecipe = activeRecipe ? applyAdjustments(activeRecipe, adjust, removed) : null;
+  const amountRecipe = activeRecipe ? applyOptionalAmounts(activeRecipe, grams) : null;
+  const adjustedRecipe = amountRecipe ? applyAdjustments(amountRecipe, adjust, removed) : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-5 pb-16 pt-6">
@@ -69,7 +71,8 @@ function App() {
       {stage === "overview" && recipe && activeRecipe && (
         <OverviewStep recipe={activeRecipe} choice={choice} onChoice={(c) => { setChoice(c); resetAdjustments(); }} original={recipe} portions={portions} onBack={() => setStage("portions")}
           onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode}
-          adjust={adjust} removed={removed} onAdjust={(i, m) => setAdjust((a) => ({ ...a, [i]: m }))} onRemove={(i, on) => setRemoved((s) => { const n = new Set(s); on ? n.add(i) : n.delete(i); return n; })} />
+          adjust={adjust} removed={removed} onAdjust={(i, m) => setAdjust((a) => ({ ...a, [i]: m }))} onRemove={(i, on) => setRemoved((s) => { const n = new Set(s); on ? n.add(i) : n.delete(i); return n; })}
+          grams={grams} onGrams={(i, g) => setGrams((a) => { const n = { ...a }; if (g > 0) n[i] = g; else delete n[i]; return n; })} />
       )}
       {stage === "cook" && activeRecipe && <CookingGuide recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
@@ -309,15 +312,17 @@ function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, 
 }
 
 function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode,
-  adjust, removed, onAdjust, onRemove }: {
+  adjust, removed, onAdjust, onRemove, grams, onGrams }: {
   recipe: RecipeVersion; choice: RecipeChoice; onChoice: (choice: RecipeChoice) => void; original: ParsedRecipe;
   portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
   unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
   adjust: Record<number, number>; removed: Set<number>;
   onAdjust: (i: number, m: number) => void; onRemove: (i: number, on: boolean) => void;
+  grams: Record<number, number>; onGrams: (i: number, g: number) => void;
 }) {
   const [open, setOpen] = useState<number | null>(null);
-  const shown = applyAdjustments(recipe, adjust, removed);
+  const withGrams = applyOptionalAmounts(recipe, grams);
+  const shown = applyAdjustments(withGrams, adjust, removed);
   const nutrition = computedNutrition(shown);
   const warnings = nutritionWarnings(nutrition);
   const tweaked = removed.size > 0 || Object.values(adjust).some((m) => m !== 1);
@@ -364,20 +369,24 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         {recipe.ingredients.map((ing, i) => {
           const isRemoved = removed.has(i);
           const m = adjust[i] ?? 1;
+          const ingA = withGrams.ingredients[i] ?? ing;
           const changeLabel = ingredientChangeLabel(ing, recipe, original, portions);
           return (
             <li key={i} className={cn(isRemoved && "opacity-60")}>
               <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
+                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>
+                    {ing.name}
+                    {ingA.optional && <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 align-middle text-[10px] uppercase tracking-wide text-muted-foreground">Optional</span>}
+                  </span>
                   {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                   {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
                   {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-                  <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
-                  <span className="text-xs font-medium text-foreground">{isRemoved ? "0 kcal" : Number.isFinite(ing.nutrition?.kcal) ? `≈ ${Math.round(ing.nutrition.kcal * m / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
+                  <span className="text-sm text-muted-foreground">{ingredientLine(ingA, recipe.servings, portions, unitMode, m)}</span>
+                  <span className="text-xs font-medium text-foreground">{isRemoved ? "0 kcal" : Number.isFinite(ingA.nutrition?.kcal) ? `≈ ${Math.round(ingA.nutrition.kcal * m / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
                 </span>
                 <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open === i && "rotate-180")} />
               </button>
@@ -393,6 +402,18 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
                       </button>
                     ))}
                   </div>
+                  {ingA.quantity == null && (
+                    <div className="mb-3">
+                      <label htmlFor={`grams-${i}`} className="mb-1 block text-xs text-muted-foreground">Add an amount in grams (optional)</label>
+                      <div className="flex items-center gap-2">
+                        <input id={`grams-${i}`} type="number" min={1} inputMode="decimal" placeholder="e.g. 100"
+                          value={grams[i] ?? ""} onChange={(e) => onGrams(i, Number(e.target.value.replace(",", ".")))}
+                          className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums" />
+                        <span className="text-sm text-muted-foreground">g</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Kcal and macros update from the amount you add.</p>
+                    </div>
+                  )}
                   <button onClick={() => onRemove(i, !isRemoved)} className="text-xs text-muted-foreground underline">
                     {isRemoved ? "Add back to this meal" : "I'll skip this ingredient"}
                   </button>
