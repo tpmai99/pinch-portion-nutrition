@@ -110,14 +110,14 @@ describe("recipe and grocery choices", () => {
     const h = chooseRecipe(r, "healthier");
     const oil = h.ingredients[0];
     const beef = h.ingredients[1];
-    expect(oil && ingredientChangeLabel(oil, h, r, 2)).toBe("Decreased by 2 tbsp");
+    expect(oil && ingredientChangeLabel(oil, h, r, 2)).toBe("Decreased by 30 ml");
     expect(beef && ingredientChangeLabel(beef, h, r, 2)).toBe("Changed · was: minced beef");
     // The same amount in both versions gets no label, and the swap text scales with portions.
     const y = chooseRecipe(r, "yummy");
     const yOil = y.ingredients[0];
     expect(yOil && ingredientChangeLabel(yOil, y, r, 2)).toBeNull();
     expect(beef && ingredientChangeLabel(beef, h, r, 4)).toBe("Changed · was: minced beef");
-    // Oil decrease scales with portions: 6 tbsp vs 2 tbsp at 4 portions.
-    expect(oil && ingredientChangeLabel(oil, h, r, 4)).toBe("Decreased by 4 tbsp");
+    // Oil decrease scales with portions: 6 tbsp vs 2 tbsp at 4 portions = 60 ml.
+    expect(oil && ingredientChangeLabel(oil, h, r, 4)).toBe("Decreased by 60 ml");
   });
 });

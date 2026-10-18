@@ -98,6 +98,10 @@ export function ingredientChangeLabel(
     if (!bh || !bo || bh.unit !== bo.unit) return null;
     delta = bh.amount - bo.amount;
     unit = bh.unit;
+  } else {
+    // Prefer g / ml for the delta (the user asked for grams or millilitres); keep native units like pc or handful.
+    const base = unit ? baseQuantity(1, unit) : null;
+    if (base) { delta = delta * base.amount; unit = base.unit; }
   }
   const rel = Math.abs(delta) / Math.max(Math.abs(qH), Math.abs(qO), 1e-9);
   if (rel < 0.06) return null;
