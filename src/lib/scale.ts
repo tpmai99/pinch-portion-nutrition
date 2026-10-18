@@ -1,3 +1,5 @@
+import { dutchGroceryTerm } from "./grocery";
+
 export function scaleQuantity(qty: number | null, from: number, to: number): number | null {
   if (qty == null || from <= 0) return qty;
   return (qty * to) / from;
@@ -42,17 +44,17 @@ export const CART_LABEL: Record<CartSupport, string> = {
 };
 
 export const STORES: Store[] = [
-  { id: "lidl", name: "Lidl", tier: "cheap", priceFactor: 0.78, cart: "none", searchUrl: (q) => `https://www.lidl.nl/q/search?q=${encodeURIComponent(q)}`,
+  { id: "lidl", name: "Lidl", tier: "cheap", priceFactor: 0.78, cart: "none", searchUrl: (q) => `https://www.lidl.nl/q/search?q=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Lidl has no online shop in the Netherlands, so no app can fill a cart there. Tap “Go there & buy” and shop this list in store." },
-  { id: "aldi", name: "Aldi", tier: "cheap", priceFactor: 0.8, cart: "none", searchUrl: (q) => `https://www.aldi.nl/zoeken.html?query=${encodeURIComponent(q)}`,
+  { id: "aldi", name: "Aldi", tier: "cheap", priceFactor: 0.8, cart: "none", searchUrl: (q) => `https://www.aldi.nl/zoeken.html?query=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Aldi has no online shop in the Netherlands, so no app can fill a cart there. Tap “Go there & buy” and shop this list in store." },
-  { id: "dirk", name: "Dirk", tier: "cheap", priceFactor: 0.83, cart: "none", searchUrl: (q) => `https://www.dirk.nl/zoeken/producten/${encodeURIComponent(q)}`,
+  { id: "dirk", name: "Dirk", tier: "cheap", priceFactor: 0.83, cart: "none", searchUrl: (q) => `https://www.dirk.nl/zoeken/producten/${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Dirk deliberately doesn't deliver or sell online, so no app can fill a cart there. Tap “Go there & buy” and shop this list in store." },
-  { id: "ah", name: "Albert Heijn", tier: "quality", priceFactor: 1.15, cart: "manual", searchUrl: (q) => `https://www.ah.nl/zoeken?query=${encodeURIComponent(q)}`,
+  { id: "ah", name: "Albert Heijn", tier: "quality", priceFactor: 1.15, cart: "manual", searchUrl: (q) => `https://www.ah.nl/zoeken?query=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Albert Heijn doesn't let other apps put items in your cart. Tap “Add” on each item to open it on ah.nl and add it there." },
-  { id: "jumbo", name: "Jumbo", tier: "quality", priceFactor: 1.05, cart: "manual", searchUrl: (q) => `https://www.jumbo.com/zoeken/producten?searchTerms=${encodeURIComponent(q)}`,
-    cartNote: "Jumbo doesn't let other apps put items in your cart. Tap “Add” on each item to open it on jumbo.com and add it there." },
-  { id: "ekoplaza", name: "Ekoplaza", tier: "quality", priceFactor: 1.35, cart: "manual", searchUrl: (q) => `https://www.ekoplaza.nl/nl/zoeken?q=${encodeURIComponent(q)}`,
+  { id: "jumbo", name: "Jumbo", tier: "quality", priceFactor: 1.05, cart: "manual", searchUrl: (q) => `https://www.jumbo.com/producten/?searchTerms=${encodeURIComponent(dutchGroceryTerm(q))}`,
+    cartNote: "Jumbo can't fill your cart automatically. Open a matched product and add it on Jumbo. Other items use Dutch search; results and availability may vary. If search fails, copy the Dutch name into Jumbo's own search." },
+  { id: "ekoplaza", name: "Ekoplaza", tier: "quality", priceFactor: 1.35, cart: "manual", searchUrl: (q) => `https://www.ekoplaza.nl/nl/zoeken?q=${encodeURIComponent(dutchGroceryTerm(q))}`,
     cartNote: "Ekoplaza doesn't let other apps put items in your cart. Tap “Add” on each item to open it on ekoplaza.nl and add it there." },
 ];
 

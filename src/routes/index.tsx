@@ -9,6 +9,9 @@ import {
   CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, storeDistance, type Preference,
 } from "@/lib/scale";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { chooseRecipe, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
+import { jumboBeefProduct } from "@/lib/grocery";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,6 +34,8 @@ function App() {
   const [recipe, setRecipe] = useState<ParsedRecipe | null>(null);
   const [portions, setPortions] = useState(2);
   const [shopOpen, setShopOpen] = useState(false);
+  const [choice, setChoice] = useState<RecipeChoice>("yummy");
+  const activeRecipe = recipe ? chooseRecipe(recipe, choice) : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-5 pb-16 pt-6">
@@ -46,20 +51,20 @@ function App() {
       </header>
 
       {stage === "import" && (
-        <ImportStep onParsed={(r) => { setRecipe(r); setPortions(r.servings); setStage("portions"); }} />
+        <ImportStep onParsed={(r) => { setRecipe(r); setChoice("yummy"); setPortions(r.servings); setStage("portions"); }} />
       )}
       {stage === "portions" && recipe && (
         <PortionsStep recipe={recipe} portions={portions} setPortions={setPortions}
           onBack={() => setStage("import")} onNext={() => setStage("overview")} />
       )}
-      {stage === "overview" && recipe && (
-        <OverviewStep recipe={recipe} portions={portions} onBack={() => setStage("portions")}
+      {stage === "overview" && recipe && activeRecipe && (
+        <OverviewStep recipe={activeRecipe} choice={choice} onChoice={setChoice} original={recipe} portions={portions} onBack={() => setStage("portions")}
           onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} />
       )}
-      {stage === "cook" && recipe && <CookStep recipe={recipe} onBack={() => setStage("overview")} />}
+      {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
-      {shopOpen && recipe && (
-        <ShopSheet recipe={recipe} portions={portions} onClose={() => setShopOpen(false)}
+      {shopOpen && activeRecipe && (
+        <ShopSheet recipe={activeRecipe} portions={portions} onClose={() => setShopOpen(false)}
           onCook={() => { setShopOpen(false); setStage("cook"); }} />
       )}
     </main>
@@ -224,7 +229,7 @@ function PortionsStep({ recipe, portions, setPortions, onBack, onNext }: {
 
 /* ---------- 3. overview ---------- */
 
-function MacroCard({ recipe }: { recipe: ParsedRecipe }) {
+function MacroCard({ recipe }: { recipe: RecipeVersion }) {
   const n = recipe.nutrition;
   const items = [
     { k: "kcal", v: Math.round(n.kcal), u: "" },
@@ -252,15 +257,31 @@ function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, 
   return q ? `${q}${ing.unit ? " " + ing.unit : ""}` : ing.unit || "to taste";
 }
 
-function OverviewStep({ recipe, portions, onBack, onCook, onShop }: {
-  recipe: ParsedRecipe; portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
+function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop }: {
+  recipe: RecipeVersion; choice: RecipeChoice; onChoice: (choice: RecipeChoice) => void; original: ParsedRecipe;
+  portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
 }) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  const warnings = nutritionWarnings(recipe.nutrition);
   return (
     <section className="animate-rise">
       <Back onClick={onBack} />
       <Title sub={`Scaled for ${portions} portion${portions > 1 ? "s" : ""}`}>{recipe.title}</Title>
+      <div className="mb-4 grid grid-cols-2 gap-2" role="group" aria-label="Recipe version">
+        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setChecked(new Set()); }}>Yummy · Original</Button>
+        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Healthier version</Button>
+      </div>
+      {choice === "healthier" && <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{original.changes.map((change, i) => <li key={i}>{change}</li>)}</ul>}
       <MacroCard recipe={recipe} />
+      <div className="mb-5 text-sm text-muted-foreground">
+        <p>Estimated per portion: salt {recipe.nutrition.salt == null ? "unknown" : `${recipe.nutrition.salt.toFixed(1)} g`} · free sugars {recipe.nutrition.freeSugar == null ? "unknown" : `${recipe.nutrition.freeSugar.toFixed(1)} g`}</p>
+        <p className="mt-1 text-xs">Meal planning budgets: 1.7 g salt and 8.3 g free sugars (one third of WHO adult daily guidance: less than 5 g salt; preferably 25 g free sugars at 2,000 kcal). Not official per-meal limits or personalised advice. All nutrition is estimated.</p>
+        <a className="mt-1 inline-block underline" href="https://www.who.int/news-room/fact-sheets/detail/healthy-diet" target="_blank" rel="noreferrer">WHO guidance</a>
+      </div>
+      {(warnings.salt || warnings.freeSugar) && <div role="alert" className="mb-5 space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+        <p>This portion is above the meal planning budget for {warnings.salt && warnings.freeSugar ? "salt and free sugars" : warnings.salt ? "salt" : "free sugars"}.</p>
+        {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
+      </div>}
 
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
@@ -293,7 +314,7 @@ function OverviewStep({ recipe, portions, onBack, onCook, onShop }: {
 /* ---------- 4. shop sheet ---------- */
 
 function ShopSheet({ recipe, portions, onClose, onCook }: {
-  recipe: ParsedRecipe; portions: number; onClose: () => void; onCook: () => void;
+  recipe: RecipeVersion; portions: number; onClose: () => void; onCook: () => void;
 }) {
   const [step, setStep] = useState<"items" | "pref" | "stores">("items");
   const [missing, setMissing] = useState<Set<number>>(new Set());
@@ -327,7 +348,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} items={missingItems.map((m) => ({ name: m.name, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
+          <ShopList store={store} mode={mode} loc={loc} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -460,7 +481,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
 
 /* ---------- 5. cook ---------- */
 
-function CookStep({ recipe, onBack }: { recipe: ParsedRecipe; onBack: () => void }) {
+function CookStep({ recipe, onBack }: { recipe: RecipeVersion; onBack: () => void }) {
   const [i, setI] = useState(0);
   const [done, setDone] = useState<Set<number>>(new Set());
   const total = recipe.steps.length;
@@ -541,10 +562,13 @@ function useProductImage(name: string) {
 }
 
 function ProductRow({ item, store, mode, done, onToggle }: {
-  item: { name: string; category: string; qty: string }; store: (typeof STORES)[number];
+  item: { name: string; dutchName: string; category: string; qty: string }; store: (typeof STORES)[number];
   mode: "online" | "visit"; done: boolean; onToggle: () => void;
 }) {
   const img = useProductImage(item.name);
+  const [search, setSearch] = useState(item.dutchName);
+  const [copied, setCopied] = useState(false);
+  const product = store.id === "jumbo" && !/\d+(?:[.,]\d+)?\s*%/.test(item.name) ? jumboBeefProduct(search) : null;
   return (
     <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-secondary">
@@ -554,6 +578,11 @@ function ProductRow({ item, store, mode, done, onToggle }: {
       <div className="min-w-0 flex-1">
         <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
+        {mode === "online" && <>
+          <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
+          {product && <p className="mt-1 text-xs text-muted-foreground">{product.name} · {product.kcal} kcal/100 g · choose packs for your recipe amount</p>}
+          <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(search); setCopied(true); } catch { setCopied(false); } }}>{copied ? "Copied" : "Copy Dutch name"}</Button>
+        </>}
       </div>
       {mode === "visit" ? (
         <button onClick={onToggle} aria-label="Mark as bought"
@@ -561,8 +590,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
           {done && <Check className="h-4 w-4" />}
         </button>
       ) : (
-        <a href={store.searchUrl(item.name)} target="_blank" rel="noreferrer"
-          className="tactile shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">{store.cart === "none" ? "Find" : "Add"}</a>
+        <Button asChild size="sm" className="shrink-0"><a href={product?.url ?? store.searchUrl(search)} target="_blank" rel="noreferrer">{product ? "Product" : "Find"}</a></Button>
       )}
     </li>
   );
@@ -570,7 +598,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
 
 function ShopList({ store, mode, loc, items, onBack, onCook }: {
   store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string;
-  items: { name: string; category: string; qty: string }[]; onBack: () => void; onCook: () => void;
+  items: { name: string; dutchName: string; category: string; qty: string }[]; onBack: () => void; onCook: () => void;
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
