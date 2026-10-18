@@ -120,6 +120,37 @@ describe("recipe and grocery choices", () => {
     expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).salt).toBeNull();
     expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).freeSugar).toBe(0);
   });
+  it("recalculates legacy sugar amounts without losing a known meal estimate", () => {
+    const r = { title: "Sweet rice", servings: 2, ingredients: [
+      ing({ name: "Sugar", quantity: 10, unit: "g", nutrition: { kcal: 40, protein: 0, carbs: 10, fat: 0 } }),
+      ing({ name: "Rice", nutrition: { kcal: 300, protein: 6, carbs: 66, fat: 1 } }),
+    ], steps: [], nutrition: { kcal: 170, protein: 3, carbs: 38, fat: 0.5, salt: 0.1, freeSugar: 6 } };
+    const more = computedNutrition(applyAdjustments(r, { 0: 2 }, new Set()));
+    expect(more.freeSugar).toBe(11);
+    expect(more.salt).toBe(0.1);
+    expect(nutritionWarnings(more).freeSugar).toBe(true);
+    expect(computedNutrition(applyAdjustments(r, { 0: 0.5 }, new Set())).freeSugar).toBe(3.5);
+    expect(computedNutrition(applyAdjustments(r, {}, new Set([0]))).freeSugar).toBe(1);
+    expect(computedNutrition(applyAdjustments(r, { 1: 2 }, new Set())).freeSugar).toBeNull();
+    expect(r.ingredients[0]?.quantity).toBe(10);
+  });
+  it("uses known sugar contributions even if another unchanged ingredient is unknown", () => {
+    const r = { title: "Sauce", servings: 2, ingredients: [
+      ing({ name: "Palm sugar", quantity: 10, unit: "g", nutrition: { kcal: 38, protein: 0, carbs: 9.5, fat: 0, freeSugar: 9.5 } }),
+      ing({ name: "Chilli", nutrition: { kcal: 10, protein: 0, carbs: 2, fat: 0, freeSugar: null } }),
+    ], steps: [], nutrition: { kcal: 24, protein: 0, carbs: 5.75, fat: 0, salt: null, freeSugar: 5 } };
+    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).freeSugar).toBe(9.75);
+  });
+  it("estimates plain sugar in spoons and cups but never guesses for substitutes or unknown amounts", () => {
+    const make = (name: string, quantity: number | null, unit: string) => ({ title: "Sugar", servings: 2,
+      ingredients: [ing({ name, quantity, unit })], steps: [],
+      nutrition: { kcal: 20, protein: 0, carbs: 5, fat: 0, salt: null, freeSugar: null } });
+    expect(computedNutrition(applyAdjustments(make("Caster sugar", 1, "tbsp"), { 0: 2 }, new Set())).freeSugar).toBe(12.5);
+    expect(computedNutrition(make("White sugar", 1, "cup")).freeSugar).toBe(100);
+    expect(computedNutrition(make("Sugar substitute", 10, "g")).freeSugar).toBeNull();
+    expect(computedNutrition(make("Sugar-free sweetener", 10, "g")).freeSugar).toBeNull();
+    expect(computedNutrition(make("Sugar", null, "to taste")).freeSugar).toBeNull();
+  });
   it("merges duplicate fish sauce salt before scaling", () => {
     const sauce = ing({ name: "Fish sauce", quantity: 15, unit: "ml", nutrition: { kcal: 10, protein: 1, carbs: 1, fat: 0, salt: 3, freeSugar: 0.5 } });
     const base = { title: "Sauce", servings: 2, ingredients: [sauce, sauce], steps: [], nutrition: { kcal: 10, protein: 1, carbs: 1, fat: 0, salt: 3, freeSugar: 0.5 } };

@@ -1,6 +1,6 @@
 import { splitIngredientName, dutchGroceryTerm } from "./grocery";
 import { formatQuantity, scaleQuantity } from "./scale";
-import { baseQuantity } from "./units";
+import { baseQuantity, gramsPerCup } from "./units";
 
 export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
@@ -79,6 +79,21 @@ function normName(s: string): string {
   return splitIngredientName(s).name.trim().toLowerCase();
 }
 
+/** Only plain added sugar is inferred from its mass; never confuse total carbs with free sugars. */
+function ingredientEstimate(ing: RecipeIngredient, key: "salt" | "freeSugar"): number | null {
+  const supplied = ing.nutrition[key];
+  if (supplied != null) return supplied;
+  const name = normName(ing.name);
+  if (!/^(?:(?:white|brown|granulated|caster|castor|superfine|table|cane|raw|demerara|muscovado)\s+)*sugar$/.test(name)) return null;
+  if (key === "salt") return 0;
+  if (ing.quantity == null) return null;
+  const base = baseQuantity(ing.quantity, ing.unit);
+  if (!base) return null;
+  if (base.unit === "g") return base.amount;
+  const density = gramsPerCup(name);
+  return density == null ? null : base.amount * density / 240;
+}
+
 /** Why a healthier-version ingredient differs from the original: a pure amount change
  *  ("Decreased by 2 tbsp") when it is the same product in a different quantity, otherwise
  *  the swap text ("Changed · was: oil"). Amounts are compared at the chosen portions. */
@@ -131,14 +146,26 @@ export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number
       nutrition: {
         kcal: ing.nutrition.kcal * m, protein: ing.nutrition.protein * m,
         carbs: ing.nutrition.carbs * m, fat: ing.nutrition.fat * m,
-        salt: ing.nutrition.salt == null ? null : ing.nutrition.salt * m,
-        freeSugar: ing.nutrition.freeSugar == null ? null : ing.nutrition.freeSugar * m,
+        salt: ingredientEstimate(ing, "salt") == null ? null : (ingredientEstimate(ing, "salt") ?? 0) * m,
+        freeSugar: ingredientEstimate(ing, "freeSugar") == null ? null : (ingredientEstimate(ing, "freeSugar") ?? 0) * m,
       },
     }];
   });
-  const changed = r.ingredients.some((_, i) => removed.has(i) || (adjust[i] ?? 1) !== 1);
-  // A legacy/partial recipe-level estimate is no longer valid after an adjustment.
-  const fallback = (key: "salt" | "freeSugar") => changed && r.ingredients.some(ing => ing.nutrition[key] == null) ? null : r.nutrition[key];
+  // Keep a known recipe estimate by applying only known changes. Unknown unchanged
+  // ingredients do not invalidate it; changing an unknown contribution still does.
+  const fallback = (key: "salt" | "freeSugar") => {
+    const original = r.nutrition[key];
+    if (original == null) return null;
+    let delta = 0;
+    for (const [i, ing] of r.ingredients.entries()) {
+      const multiplier = removed.has(i) ? 0 : (adjust[i] ?? 1);
+      if (multiplier === 1) continue;
+      const estimate = ingredientEstimate(ing, key);
+      if (estimate == null) return null;
+      delta += estimate * (multiplier - 1);
+    }
+    return Math.max(0, original + delta / (r.servings > 0 ? r.servings : 1));
+  };
   return { ...r, ingredients, nutrition: { ...r.nutrition, salt: fallback("salt"), freeSugar: fallback("freeSugar") } };
 }
 
@@ -155,8 +182,8 @@ export function computedNutrition(r: RecipeVersion): RecipeNutrition {
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
   const estimate = (key: "salt" | "freeSugar") => {
-    if (r.ingredients.some(ing => ing.nutrition[key] == null)) return r.nutrition[key];
-    return r.ingredients.reduce((total, ing) => total + (ing.nutrition[key] ?? 0), 0) / s;
+    if (r.ingredients.some(ing => ingredientEstimate(ing, key) == null)) return r.nutrition[key];
+    return r.ingredients.reduce((total, ing) => total + (ingredientEstimate(ing, key) ?? 0), 0) / s;
   };
   return { ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s, salt: estimate("salt"), freeSugar: estimate("freeSugar") };
 }
