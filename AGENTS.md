@@ -14,3 +14,4 @@
 - Treat meal warning thresholds as explicit planning budgets derived from cited daily guidance, not official per-meal medical limits.
 - Normalize legacy ingredient preparation through the browser-safe recipe selector and request product-only names during import; preserve preparation in cooking so names stay shopping-ready without losing the original method.
 - Nearby store distances come from Google Maps lookups on the server, never invented numbers; why: shoppers rely on them to pick a branch.
+- Keep gram/cup unit conversions in the browser-safe `src/lib/units.ts`; when an ingredient's density is unknown, keep grams instead of guessing a cup amount.

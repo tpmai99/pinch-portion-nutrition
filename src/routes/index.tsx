@@ -6,9 +6,8 @@ import {
   ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
-import {
-  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, type Preference,
-} from "@/lib/scale";
+import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
+import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { chooseRecipe, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
@@ -36,6 +35,7 @@ function App() {
   const [portions, setPortions] = useState(2);
   const [shopOpen, setShopOpen] = useState(false);
   const [choice, setChoice] = useState<RecipeChoice>("yummy");
+  const [unitMode, setUnitMode] = useState<UnitMode>("metric");
   const activeRecipe = recipe ? chooseRecipe(recipe, choice) : null;
 
   return (
@@ -60,13 +60,13 @@ function App() {
       )}
       {stage === "overview" && recipe && activeRecipe && (
         <OverviewStep recipe={activeRecipe} choice={choice} onChoice={setChoice} original={recipe} portions={portions} onBack={() => setStage("portions")}
-          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} />
+          onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode} />
       )}
       {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
       {shopOpen && activeRecipe && (
         <ShopSheet recipe={activeRecipe} portions={portions} onClose={() => setShopOpen(false)}
-          onCook={() => { setShopOpen(false); setStage("cook"); }} />
+          onCook={() => { setShopOpen(false); setStage("cook"); }} unitMode={unitMode} onUnitMode={setUnitMode} />
       )}
     </main>
   );
@@ -253,14 +253,14 @@ function MacroCard({ recipe }: { recipe: RecipeVersion }) {
   );
 }
 
-function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number) {
-  const q = formatQuantity(scaleQuantity(ing.quantity, from, to));
-  return q ? `${q}${ing.unit ? " " + ing.unit : ""}` : ing.unit || "to taste";
+function ingredientLine(ing: ParsedRecipe["ingredients"][number], from: number, to: number, mode: UnitMode) {
+  return convertAmount(ing.name, ing.quantity, ing.unit, from, to, mode);
 }
 
-function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop }: {
+function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, onCook, onShop, unitMode, onUnitMode }: {
   recipe: RecipeVersion; choice: RecipeChoice; onChoice: (choice: RecipeChoice) => void; original: ParsedRecipe;
   portions: number; onBack: () => void; onCook: () => void; onShop: () => void;
+  unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
 }) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const warnings = nutritionWarnings(recipe.nutrition);
@@ -287,6 +287,19 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         {choice === "yummy" ? <><p>Would you like to adjust this meal to a healthier version?</p><Button className="h-auto whitespace-normal" onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Adjust to healthier version</Button></> : <p>The adjusted version is still above the budget. Consider less salty sauce or added sugar, and check product labels.</p>}
       </div>}
 
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Amounts in</p>
+        <div className="flex rounded-full bg-secondary p-1" role="group" aria-label="Measurement unit">
+          {([["metric", "g / ml"], ["cups", "Cups"]] as const).map(([m, label]) => (
+            <button key={m} aria-pressed={unitMode === m} onClick={() => onUnitMode(m)}
+              className={cn("rounded-full px-3 py-1 text-xs font-medium",
+                unitMode === m ? "bg-card text-foreground shadow-soft" : "text-muted-foreground")}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {unitMode === "cups" && <p className="mb-3 text-xs text-muted-foreground">Cup amounts are approximate conversions; grams follow the recipe exactly.</p>}
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
           const on = checked.has(i);
@@ -299,7 +312,7 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
                   {on && <Check className="h-4 w-4" />}
                 </span>
                 <span className={cn("flex-1", on && "text-muted-foreground line-through")}>{ing.name}</span>
-                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions)}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
               </button>
             </li>
           );
@@ -317,8 +330,9 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
 
 /* ---------- 4. shop sheet ---------- */
 
-function ShopSheet({ recipe, portions, onClose, onCook }: {
+function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: {
   recipe: RecipeVersion; portions: number; onClose: () => void; onCook: () => void;
+  unitMode: UnitMode; onUnitMode: (m: UnitMode) => void;
 }) {
   const [step, setStep] = useState<"items" | "pref" | "stores">("items");
   const [missing, setMissing] = useState<Set<number>>(new Set());
@@ -367,7 +381,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
+          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode) }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -390,7 +404,19 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
         {step === "items" && (
           <>
             <h2 className="mb-1 font-display text-3xl">What do you need to buy?</h2>
-            <p className="mb-5 text-sm text-muted-foreground">Select only the missing items.</p>
+            <p className="mb-3 text-sm text-muted-foreground">Select only the missing items.</p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Amounts in</p>
+              <div className="flex rounded-full bg-secondary p-1" role="group" aria-label="Measurement unit">
+                {([["metric", "g / ml"], ["cups", "Cups"]] as const).map(([m, label]) => (
+                  <button key={m} aria-pressed={unitMode === m} onClick={() => onUnitMode(m)}
+                    className={cn("rounded-full px-3 py-1 text-xs font-medium",
+                      unitMode === m ? "bg-card text-foreground shadow-soft" : "text-muted-foreground")}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <ul className="mb-6 space-y-2">
               {recipe.ingredients.map((ing, i) => {
                 const on = missing.has(i);
@@ -404,7 +430,7 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                         {on && <Check className="h-4 w-4" />}
                       </span>
                       <span className="flex-1">{ing.name}</span>
-                      <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions)}</span>
+                      <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
                     </button>
                   </li>
                 );
