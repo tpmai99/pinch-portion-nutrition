@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { verifiedProduct } from "@/lib/grocery";
 import { CookingGuide } from "@/components/CookingGuide";
+import { isTikTokRecipeLink } from "@/lib/recipe-links";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -213,6 +214,7 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
       </div>
 
       {error && <p className="mb-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      {error && mode === "link" && isTikTokRecipeLink(url) && <Button variant="outline" className="mb-4 w-full" onClick={() => { setMode("video"); setError(null); }}><Film className="h-4 w-4" /> Upload saved video instead</Button>}
 
       <PrimaryButton disabled={!ready || loading} onClick={go}>
         {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> {stage ?? "Reading recipe…"}</>) : (<>Pinch it <ArrowRight className="h-5 w-5" /></>)}

@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Correct TikTok shared-link handling and verify upload guidance instead of claiming the video contains no recipe
+
 - [x] Show estimated kcal per portion beside ingredients and verify amount changes and removal
 - [ ] Confirm whether the user's video serves three but lists noodles for one — blocked: original video is not available in chat uploads
 

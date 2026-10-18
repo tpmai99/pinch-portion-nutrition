@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { ParsedRecipe } from "./recipe";
+import { hasRecipeCaption, isTikTokRecipeLink, TIKTOK_RECIPE_ACCESS_MESSAGE } from "./recipe-links";
 export type { ParsedRecipe } from "./recipe";
 
 const Input = z.object({
@@ -77,12 +78,22 @@ async function textFromUrl(url: string): Promise<string> {
       "We could read the video's title, but YouTube blocks apps from reading video descriptions. Paste the recipe text below (open the video, tap …more under the title, copy the description) or upload a screenshot instead.",
     );
   }
-  if (host.includes("tiktok.com")) {
-    const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
-    if (r.ok) {
-      const j = (await r.json()) as { title?: string; author_name?: string };
-      if (j.title) return `TikTok caption by ${j.author_name ?? "creator"}:\n${j.title}`;
-    }
+  if (isTikTokRecipeLink(url)) {
+    try {
+      let resolvedUrl = url;
+      if (host === "tt.site" || host.endsWith(".tt.site") || host === "vm.tiktok.com" || host === "vt.tiktok.com") {
+        const shared = await fetch(url, { redirect: "follow" });
+        await shared.body?.cancel();
+        if (!shared.ok || !isTikTokRecipeLink(shared.url)) throw new Error(TIKTOK_RECIPE_ACCESS_MESSAGE);
+        resolvedUrl = shared.url;
+      }
+      const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`);
+      if (r.ok) {
+        const j = (await r.json()) as { title?: string; author_name?: string };
+        if (j.title && hasRecipeCaption(j.title)) return `TikTok caption by ${j.author_name ?? "creator"}:\n${j.title}`;
+      }
+    } catch { /* An inaccessible video is not evidence that it contains no recipe. */ }
+    throw new Error(TIKTOK_RECIPE_ACCESS_MESSAGE);
   }
   const r = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; PinchBot/1.0)", Accept: "text/html" },
