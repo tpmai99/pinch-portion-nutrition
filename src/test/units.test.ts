@@ -39,6 +39,10 @@ describe("unit conversion", () => {
     expect(gramsPerCup("beansprouts")).toBe(65);
     expect(gramsPerCup("bean sprouts")).toBe(65);
     expect(convertAmount("beansprouts", 1, "cup", 2, 2, "metric")).toBe("65 g");
+    // Tofu is a solid — 120 ml ≈ 125 g, never "120 ml".
+    expect(gramsPerCup("firm tofu")).toBe(250);
+    expect(convertAmount("firm tofu", 120, "ml", 2, 2, "metric")).toBe("125 g");
+    expect(convertAmount("silken tofu", 0.5, "cup", 2, 2, "cups")).toBe("½ cup");
     // Liquids stay in ml.
     expect(convertAmount("milk", 1, "cup", 2, 2, "metric")).toBe("240 ml");
     expect(convertAmount("soy sauce", 2, "tbsp", 2, 2, "metric")).toBe("30 ml");

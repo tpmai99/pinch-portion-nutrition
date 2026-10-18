@@ -46,6 +46,7 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/seeds?\b|sesame|sunflower|pumpkin seed|flax|chia/, 140],
   [/mushroom/, 90],
   [/carrot|celery|pepper\b|zucchini|courgette|aubergine|eggplant/, 130],
+  [/tofu|tempeh/, 250],
   [/apple|banana|berry|berries|strawberr|blueberr|raspberr|mango|pineapple/, 150],
   [/stock|broth|water\b|juice/, 240],
 ];
