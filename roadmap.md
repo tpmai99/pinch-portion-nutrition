@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Recalculate salt and free sugars when ingredients change and use those totals for warnings
+- [x] Recalculate salt and free sugars when ingredients change and use those totals for warnings
 
 - [x] Group cooking into Preparation and Cooking with an overview, optional details and a choice of where to start
 
