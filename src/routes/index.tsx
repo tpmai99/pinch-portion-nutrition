@@ -3,14 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
+  ArrowLeft, ArrowRight, Check, ChefHat, ChevronDown, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
 import { CART_LABEL, STORES, estimateCart, type Preference } from "@/lib/scale";
 import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { chooseRecipe, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
+import { applyAdjustments, chooseRecipe, computedNutrition, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { jumboBeefProduct } from "@/lib/grocery";
 
 export const Route = createFileRoute("/")({
@@ -36,7 +36,11 @@ function App() {
   const [shopOpen, setShopOpen] = useState(false);
   const [choice, setChoice] = useState<RecipeChoice>("yummy");
   const [unitMode, setUnitMode] = useState<UnitMode>("metric");
+  const [adjust, setAdjust] = useState<Record<number, number>>({});
+  const [removed, setRemoved] = useState<Set<number>>(new Set());
+  const resetAdjustments = () => { setAdjust({}); setRemoved(new Set()); };
   const activeRecipe = recipe ? chooseRecipe(recipe, choice) : null;
+  const adjustedRecipe = activeRecipe ? applyAdjustments(activeRecipe, adjust, removed) : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-5 pb-16 pt-6">
