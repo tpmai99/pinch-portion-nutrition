@@ -111,13 +111,15 @@ describe("recipe and grocery choices", () => {
     expect(computedNutrition(applyAdjustments(r, { 0: 0.5 }, new Set())).salt).toBe(0.75);
     expect(computedNutrition(applyAdjustments(r, {}, new Set([0]))).salt).toBe(0);
   });
-  it("does not leave stale salt totals after adjusting legacy or partially unknown recipes", () => {
+  it("shows a minimum instead of unknown when an unknown ingredient is increased", () => {
     const r = { title: "Sauce", servings: 2, ingredients: [ing()], steps: [], nutrition: { kcal: 20, protein: 0.5, carbs: 4.5, fat: 0, salt: 1, freeSugar: 2 } };
     expect(computedNutrition(r).salt).toBe(1);
-    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).salt).toBeNull();
-    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).freeSugar).toBeNull();
+    const more = computedNutrition(applyAdjustments(r, { 0: 2 }, new Set()));
+    expect(more).toMatchObject({ salt: 1, saltAtLeast: true, freeSugar: 2, freeSugarAtLeast: true });
+    // Reducing an unknown contribution cannot be bounded from below.
+    expect(computedNutrition(applyAdjustments(r, { 0: 0.5 }, new Set())).salt).toBeNull();
     const partial = { ...r, ingredients: [ing({ nutrition: { kcal: 40, protein: 1, carbs: 9, fat: 0, salt: null, freeSugar: 0 } })] };
-    expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).salt).toBeNull();
+    expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).saltAtLeast).toBe(true);
     expect(computedNutrition(applyAdjustments(partial, { 0: 2 }, new Set())).freeSugar).toBe(0);
   });
   it("recalculates legacy sugar amounts without losing a known meal estimate", () => {
@@ -131,7 +133,7 @@ describe("recipe and grocery choices", () => {
     expect(nutritionWarnings(more).freeSugar).toBe(true);
     expect(computedNutrition(applyAdjustments(r, { 0: 0.5 }, new Set())).freeSugar).toBe(3.5);
     expect(computedNutrition(applyAdjustments(r, {}, new Set([0]))).freeSugar).toBe(1);
-    expect(computedNutrition(applyAdjustments(r, { 1: 2 }, new Set())).freeSugar).toBeNull();
+    expect(computedNutrition(applyAdjustments(r, { 1: 2 }, new Set()))).toMatchObject({ freeSugar: 6, freeSugarAtLeast: true });
     expect(r.ingredients[0]?.quantity).toBe(10);
   });
   it("uses known sugar contributions even if another unchanged ingredient is unknown", () => {
@@ -140,6 +142,17 @@ describe("recipe and grocery choices", () => {
       ing({ name: "Chilli", nutrition: { kcal: 10, protein: 0, carbs: 2, fat: 0, freeSugar: null } }),
     ], steps: [], nutrition: { kcal: 24, protein: 0, carbs: 5.75, fat: 0, salt: null, freeSugar: 5 } };
     expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).freeSugar).toBe(9.75);
+  });
+  it("recalculates plain salt from its amount and warns on the minimum when the meal total is unknown", () => {
+    const r = { title: "Soup", servings: 2, ingredients: [
+      ing({ name: "Salt", quantity: 1, unit: "tsp", nutrition: { kcal: 0, protein: 0, carbs: 0, fat: 0 } }),
+      ing({ name: "Broth", nutrition: { kcal: 30, protein: 2, carbs: 2, fat: 1 } }),
+    ], steps: [], nutrition: { kcal: 15, protein: 1, carbs: 1, fat: 0.5, salt: null, freeSugar: null } };
+    const base = computedNutrition(r);
+    expect(base).toMatchObject({ salt: 3, saltAtLeast: true });
+    expect(nutritionWarnings(base).salt).toBe(true);
+    expect(computedNutrition(applyAdjustments(r, { 0: 2 }, new Set())).salt).toBe(6);
+    expect(computedNutrition(applyAdjustments(r, {}, new Set([0]))).salt).toBeNull();
   });
   it("estimates plain sugar in spoons and cups but never guesses for substitutes or unknown amounts", () => {
     const make = (name: string, quantity: number | null, unit: string) => ({ title: "Sugar", servings: 2,
