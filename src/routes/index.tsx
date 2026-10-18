@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
@@ -319,11 +319,19 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
     );
   }
 
-  function fillCart(storeId: string) {
-    const s = STORES.find((x) => x.id === storeId)!;
-    const list = missingItems.map((m) => `${m.name} — ${ingredientLine(m, recipe.servings, portions)}`).join("\n");
-    navigator.clipboard?.writeText(list).catch(() => {});
-    window.open(s.searchUrl(missingItems[0]?.name ?? ""), "_blank");
+  const [mode, setMode] = useState<"online" | "visit" | null>(null);
+  const store = STORES.find((x) => x.id === selected);
+
+  if (mode && store) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()}
+          className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
+          <ShopList store={store} mode={mode} loc={loc} items={missingItems.map((m) => ({ name: m.name, category: m.category, qty: ingredientLine(m, recipe.servings, portions) }))}
+            onBack={() => setMode(null)} onCook={onCook} />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -421,10 +429,13 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                     </li>
                   ))}
                 </ul>
-                <p className="mb-5 text-xs text-muted-foreground">Distances and prices are estimates. Your list is copied when you open the store.</p>
-                <PrimaryButton disabled={!selected} onClick={() => selected && fillCart(selected)}>
-                  <ShoppingBag className="h-5 w-5" /> Fill online cart
+                <p className="mb-5 text-xs text-muted-foreground">Distances and prices are estimates.</p>
+                <PrimaryButton disabled={!selected} onClick={() => setMode("visit")}>
+                  <MapPin className="h-5 w-5" /> Go there & buy
                 </PrimaryButton>
+                <GhostButton className="mt-3" disabled={!selected} onClick={() => setMode("online")}>
+                  <ShoppingBag className="h-5 w-5" /> Shop online
+                </GhostButton>
                 <GhostButton className="mt-3" onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
               </>
             )}
@@ -487,5 +498,97 @@ function CookStep({ recipe, onBack }: { recipe: ParsedRecipe; onBack: () => void
         ))}
       </div>
     </section>
+  );
+}
+
+/* ---------- shopping list (visit / online) ---------- */
+
+const HOUSE_BRAND: Record<string, string> = {
+  lidl: "Lidl own brand", aldi: "Aldi own brand", dirk: "1 de Beste", ah: "AH Excellent / A-brand",
+  jumbo: "Jumbo / A-brand", ekoplaza: "Ekoplaza Bio",
+};
+const AISLE: Record<string, string> = {
+  produce: "Fruit & veg", dairy: "Dairy & eggs", meat: "Meat", fish: "Fish", pantry: "Pantry",
+  bakery: "Bakery", spices: "Herbs & spices", frozen: "Frozen", other: "Other",
+};
+const NO_ONLINE = new Set(["lidl", "aldi"]);
+
+function useProductImage(name: string) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const q = name.toLowerCase().replace(/\b(fresh|chopped|minced|large|small|ground|dried)\b/g, "").trim();
+    fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q + " food")}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=200`)
+      .then((r) => r.json())
+      .then((j) => {
+        const page = j?.query?.pages && (Object.values(j.query.pages)[0] as { thumbnail?: { source: string } });
+        if (alive) setSrc(page?.thumbnail?.source ?? null);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [name]);
+  return src;
+}
+
+function ProductRow({ item, store, mode, done, onToggle }: {
+  item: { name: string; category: string; qty: string }; store: (typeof STORES)[number];
+  mode: "online" | "visit"; done: boolean; onToggle: () => void;
+}) {
+  const img = useProductImage(item.name);
+  return (
+    <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-secondary">
+        {img ? <img src={img} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
+          : <div className="grid h-full w-full place-items-center"><ShoppingBag className="h-5 w-5 text-muted-foreground" /></div>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
+        <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
+      </div>
+      {mode === "visit" ? (
+        <button onClick={onToggle} aria-label="Mark as bought"
+          className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg border", done ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
+          {done && <Check className="h-4 w-4" />}
+        </button>
+      ) : (
+        <a href={store.searchUrl(item.name)} target="_blank" rel="noreferrer"
+          className="tactile shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">Add</a>
+      )}
+    </li>
+  );
+}
+
+function ShopList({ store, mode, loc, items, onBack, onCook }: {
+  store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string;
+  items: { name: string; category: string; qty: string }[]; onBack: () => void; onCook: () => void;
+}) {
+  const [done, setDone] = useState<Set<number>>(new Set());
+  const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
+  const maps = `https://www.google.com/maps/search/${encodeURIComponent(`${store.name} ${loc}`)}`;
+  return (
+    <>
+      <h2 className="mb-1 font-display text-3xl">{mode === "visit" ? `Your ${store.name} list` : `Shop ${store.name} online`}</h2>
+      <p className="mb-5 text-sm text-muted-foreground">
+        {mode === "visit"
+          ? "Sorted by aisle. Tick items off as you go."
+          : NO_ONLINE.has(store.id)
+            ? `${store.name} doesn't sell groceries online in the Netherlands, so links open the product on their site. Use “Go there & buy” for the in-store list.`
+            : `Supermarkets don't let other apps fill your cart, so tap “Add” on each item to open it in ${store.name} and add it there.`}
+      </p>
+      <ul className="mb-6 space-y-2">
+        {sorted.map((it, i) => (
+          <ProductRow key={i} item={it} store={store} mode={mode} done={done.has(i)}
+            onToggle={() => { const s = new Set(done); s.has(i) ? s.delete(i) : s.add(i); setDone(s); }} />
+        ))}
+      </ul>
+      {mode === "visit" && (
+        <a href={maps} target="_blank" rel="noreferrer"
+          className="tactile mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 font-medium text-primary-foreground shadow-lift">
+          <MapPin className="h-5 w-5" /> Directions to {store.name}
+        </a>
+      )}
+      <GhostButton onClick={onCook}><ChefHat className="h-5 w-5" /> Start cooking</GhostButton>
+      <button onClick={onBack} className="mt-3 w-full text-sm text-muted-foreground">Back to stores</button>
+    </>
   );
 }
