@@ -52,7 +52,7 @@ describe("recipe and grocery choices", () => {
     expect(chooseRecipe(r, "yummy").ingredients[0]?.name).toBe("minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.name).toBe("extra lean minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.changedFrom).toBe("minced beef");
-    expect(chooseRecipe(r, "yummy").ingredients[0]?.changedFrom).toBeUndefined();
+    expect(chooseRecipe(r, "yummy").ingredients[0]?.changedFrom).toBeNull();
     expect(chooseRecipe(r, "healthier").steps[0]).toBe("Fry extra lean beef");
     expect(chooseRecipe(r, "healthier").nutrition.kcal).toBe(400);
   });
