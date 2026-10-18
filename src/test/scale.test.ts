@@ -17,4 +17,16 @@ describe("portion scaling", () => {
     const ah = STORES.find((s) => s.id === "ah")!;
     expect(estimateCart(cats, lidl)).toBeLessThan(estimateCart(cats, ah));
   });
+  it("no store promises an automatic cart, and every store explains why", () => {
+    for (const s of STORES) {
+      expect(s.cart).not.toBe("auto");
+      expect(s.cartNote.length).toBeGreaterThan(20);
+    }
+  });
+  it("Lidl, Aldi and Dirk have no online shop; Albert Heijn, Jumbo and Ekoplaza do", () => {
+    const none = STORES.filter((s) => s.cart === "none").map((s) => s.id).sort();
+    const manual = STORES.filter((s) => s.cart === "manual").map((s) => s.id).sort();
+    expect(none).toEqual(["aldi", "dirk", "lidl"]);
+    expect(manual).toEqual(["ah", "ekoplaza", "jumbo"]);
+  });
 });

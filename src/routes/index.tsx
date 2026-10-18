@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
+  ArrowLeft, ArrowRight, Check, ChefHat, ImagePlus, Info, Link2, Loader2, MapPin, Minus, Plus, ShoppingBag, Type, X,
 } from "lucide-react";
 import { parseRecipe, type ParsedRecipe } from "@/lib/recipe.functions";
 import {
-  STORES, estimateCart, formatQuantity, scaleQuantity, storeDistance, type Preference,
+  CART_LABEL, STORES, estimateCart, formatQuantity, scaleQuantity, storeDistance, type Preference,
 } from "@/lib/scale";
 import { cn } from "@/lib/utils";
 
@@ -417,9 +417,14 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                       <button onClick={() => setSelected(s.id)}
                         className={cn("tactile flex w-full items-center justify-between rounded-2xl border p-4 text-left",
                           selected === s.id ? "border-accent bg-card shadow-lift" : "border-border bg-card")}>
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-medium">{s.name}</div>
                           <div className="text-sm text-muted-foreground">{s.km} km away</div>
+                          <span className={cn("mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                            s.cart === "auto" ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground")}>
+                            {s.cart === "auto" ? <Check className="h-3 w-3" /> : <Info className="h-3 w-3" />}
+                            {CART_LABEL[s.cart]}
+                          </span>
                         </div>
                         <div className="text-right">
                           <div className="font-display text-2xl">€{s.cost.toFixed(2)}</div>
@@ -429,7 +434,13 @@ function ShopSheet({ recipe, portions, onClose, onCook }: {
                     </li>
                   ))}
                 </ul>
-                <p className="mb-5 text-xs text-muted-foreground">Distances and prices are estimates.</p>
+                <p className="mb-4 text-xs text-muted-foreground">Distances and prices are estimates.</p>
+                {store && store.cart !== "auto" && (
+                  <div className="mb-4 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span><span className="font-medium text-foreground">Before you choose: </span>{store.cartNote}</span>
+                  </div>
+                )}
                 <PrimaryButton disabled={!selected} onClick={() => setMode("visit")}>
                   <MapPin className="h-5 w-5" /> Go there & buy
                 </PrimaryButton>
@@ -511,7 +522,6 @@ const AISLE: Record<string, string> = {
   produce: "Fruit & veg", dairy: "Dairy & eggs", meat: "Meat", fish: "Fish", pantry: "Pantry",
   bakery: "Bakery", spices: "Herbs & spices", frozen: "Frozen", other: "Other",
 };
-const NO_ONLINE = new Set(["lidl", "aldi"]);
 
 function useProductImage(name: string) {
   const [src, setSrc] = useState<string | null>(null);
@@ -552,7 +562,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
         </button>
       ) : (
         <a href={store.searchUrl(item.name)} target="_blank" rel="noreferrer"
-          className="tactile shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">Add</a>
+          className="tactile shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">{store.cart === "none" ? "Find" : "Add"}</a>
       )}
     </li>
   );
@@ -568,13 +578,15 @@ function ShopList({ store, mode, loc, items, onBack, onCook }: {
   return (
     <>
       <h2 className="mb-1 font-display text-3xl">{mode === "visit" ? `Your ${store.name} list` : `Shop ${store.name} online`}</h2>
-      <p className="mb-5 text-sm text-muted-foreground">
-        {mode === "visit"
-          ? "Sorted by aisle. Tick items off as you go."
-          : NO_ONLINE.has(store.id)
-            ? `${store.name} doesn't sell groceries online in the Netherlands, so links open the product on their site. Use “Go there & buy” for the in-store list.`
-            : `Supermarkets don't let other apps fill your cart, so tap “Add” on each item to open it in ${store.name} and add it there.`}
+      <p className="mb-4 text-sm text-muted-foreground">
+        {mode === "visit" ? "Sorted by aisle. Tick items off as you go." : "Your list, with a photo, name and amount for each item."}
       </p>
+      {mode === "online" && (
+        <div className="mb-5 flex items-start gap-2 rounded-2xl border border-border bg-secondary/60 p-3 text-xs text-muted-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{store.cartNote}</span>
+        </div>
+      )}
       <ul className="mb-6 space-y-2">
         {sorted.map((it, i) => (
           <ProductRow key={i} item={it} store={store} mode={mode} done={done.has(i)}
