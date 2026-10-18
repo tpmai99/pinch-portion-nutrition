@@ -12,3 +12,4 @@
 - Keep recipe versions and nutrition-warning calculations in browser-safe domain modules; selecting a version must update cooking, nutrition and shopping together.
 - Keep verified supermarket product mappings separate from generated search terms; never fabricate product IDs or imply searches guarantee stock.
 - Treat meal warning thresholds as explicit planning budgets derived from cited daily guidance, not official per-meal medical limits.
+- Normalize legacy ingredient preparation through the browser-safe recipe selector and request product-only names during import; preserve preparation in cooking so names stay shopping-ready without losing the original method.

@@ -571,7 +571,9 @@ function ProductRow({ item, store, mode, done, onToggle }: {
   const img = useProductImage(item.name);
   const [search, setSearch] = useState(item.dutchName);
   const [copied, setCopied] = useState(false);
+  const [linkState, setLinkState] = useState<"idle" | "copied" | "manual">("idle");
   const product = store.id === "jumbo" && !/\d+(?:[.,]\d+)?\s*%/.test(item.name) ? jumboBeefProduct(search) : null;
+  const productUrl = product?.url ?? store.searchUrl(search);
   return (
     <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-secondary">
@@ -585,6 +587,10 @@ function ProductRow({ item, store, mode, done, onToggle }: {
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
           {product && <p className="mt-1 text-xs text-muted-foreground">{product.name} · {product.kcal} kcal/100 g · choose packs for your recipe amount</p>}
           <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(search); setCopied(true); } catch { setCopied(false); } }}>{copied ? "Copied" : "Copy Dutch name"}</Button>
+          {store.id === "jumbo" && <>
+            <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(productUrl); setLinkState("copied"); } catch { setLinkState("manual"); } }}>{linkState === "copied" ? "Link copied" : "Copy link"}</Button>
+            {linkState === "manual" && <input aria-label={`Jumbo link for ${item.name}`} readOnly value={productUrl} onFocus={e => e.currentTarget.select()} className="mt-1 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-xs" />}
+          </>}
         </>}
       </div>
       {mode === "visit" ? (
@@ -593,7 +599,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
           {done && <Check className="h-4 w-4" />}
         </button>
       ) : (
-        <Button asChild size="sm" className="shrink-0"><a href={product?.url ?? store.searchUrl(search)} target="_blank" rel="noreferrer">{product ? "Product" : "Find"}</a></Button>
+        <Button asChild size="sm" className="shrink-0"><a href={productUrl} target="_blank" rel="noopener noreferrer">{product ? "Product" : "Find"}</a></Button>
       )}
     </li>
   );
@@ -617,6 +623,7 @@ function ShopList({ store, mode, loc, items, onBack, onCook }: {
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0 space-y-2">
             <p>{store.cartNote}</p>
+            {store.id === "jumbo" && <p>Firefox security warning? Use “Copy link” on the item and paste it into the address bar of a new browser tab. Keep your browser security enabled.</p>}
             {store.id === "jumbo" && <Button asChild size="sm" variant="outline" className="h-auto whitespace-normal"><a href="https://www.jumbo.com/producten/" target="_blank" rel="noreferrer">Open Jumbo catalogue</a></Button>}
           </div>
         </div>
