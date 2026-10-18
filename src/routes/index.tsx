@@ -14,6 +14,7 @@ import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabe
 import { verifiedProduct } from "@/lib/grocery";
 import { CookingGuide } from "@/components/CookingGuide";
 import { isTikTokRecipeLink } from "@/lib/recipe-links";
+import { videoUploadError } from "@/lib/video";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -118,6 +119,7 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
   const readVideo = useServerFn(readRecipeVideo);
   const [mode, setMode] = useState<"link" | "text" | "image" | "video">("link");
   const [video, setVideo] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [videoText, setVideoText] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
@@ -133,13 +135,19 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
     setLoading(true); setError(null);
     try {
       if (mode === "video") {
+        if (!video) return;
+        if (videoText !== null) {
+          setStage("Reading recipe…");
+          onParsed(await parse({ data: { text: videoText } }));
+          return;
+        }
         setStage("Watching the video…");
-        const { text: watched } = await readVideo({ data: { videoDataUrl: video!.dataUrl } });
-        setStage("Reading recipe…");
-        onParsed(await parse({ data: { text: watched } }));
+        const { text: watched } = await readVideo({ data: { videoDataUrl: video.dataUrl } });
+        setVideoText(watched);
         return;
       }
-      const data = mode === "link" ? { url } : mode === "text" ? { text } : { imageDataUrl: image! };
+      if (mode === "image" && !image) return;
+      const data = mode === "link" ? { url } : mode === "text" ? { text } : { imageDataUrl: image ?? undefined };
       onParsed(await parse({ data }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -148,10 +156,13 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
 
   function onVideo(f?: File) {
     if (!f) return;
-    if (f.size > 25 * 1024 * 1024) { setError("That video is over 25 MB. Trim it or upload a shorter clip."); return; }
+    setVideo(null); setVideoText(null);
+    const uploadError = videoUploadError(f.size, f.type);
+    if (uploadError) { setError(uploadError); return; }
     setError(null);
     const r = new FileReader();
-    r.onload = () => setVideo({ dataUrl: r.result as string, name: f.name });
+    r.onload = () => { if (typeof r.result === "string") setVideo({ dataUrl: r.result, name: f.name }); };
+    r.onerror = () => setError("Couldn't open that video. Choose the file again.");
     r.readAsDataURL(f);
   }
 
@@ -177,11 +188,11 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
 
       <div className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-secondary p-1">
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setMode(t.id)}
+          <Button variant="ghost" key={t.id} disabled={loading} onClick={() => { setMode(t.id); setError(null); }}
             className={cn("tactile flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm",
               mode === t.id ? "bg-card font-medium shadow-soft" : "text-muted-foreground")}>
             <t.icon className="h-4 w-4" /> {t.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -203,22 +214,23 @@ function ImportStep({ onParsed }: { onParsed: (r: ParsedRecipe) => void }) {
           </button>
         )}
         {mode === "video" && (
-          <button onClick={() => videoRef.current?.click()}
-            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-muted text-muted-foreground">
-            {video ? <video src={video.dataUrl} muted playsInline autoPlay loop className="h-full w-full object-contain" />
-              : (<><Film className="h-7 w-7" /><span className="text-sm">Tap to upload a cooking video</span><span className="text-xs">Reads on-screen text and what's said · up to 25 MB</span></>)}
-          </button>
+          <div className="space-y-3">
+            {video ? <><video src={video.dataUrl} controls playsInline className="aspect-[4/3] w-full rounded-lg bg-muted object-contain" /><p className="break-all text-sm text-muted-foreground">{video.name}</p></> : null}
+            <Button variant="outline" className="w-full" disabled={loading} onClick={() => videoRef.current?.click()}><Film className="h-4 w-4" />{video ? "Choose another video" : "Upload saved reel"}</Button>
+            <p className="text-xs text-muted-foreground">MP4, MOV or WebM · up to 25 MB</p>
+            {videoText !== null && <div className="space-y-2"><label htmlFor="video-transcript" className="text-sm font-medium">Extracted recipe</label><textarea id="video-transcript" value={videoText} disabled={loading} onChange={(e) => setVideoText(e.target.value)} rows={14} className="w-full resize-y rounded-lg border border-border bg-background p-3 text-sm" /></div>}
+          </div>
         )}
-        <input ref={videoRef} type="file" accept="video/*" hidden onChange={(e) => onVideo(e.target.files?.[0])} />
+        <input ref={videoRef} type="file" accept="video/*" hidden disabled={loading} onChange={(e) => { onVideo(e.target.files?.[0]); e.target.value = ""; }} />
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
       </div>
 
       {error && <p className="mb-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       {error && mode === "link" && isTikTokRecipeLink(url) && <Button variant="outline" className="mb-4 w-full" onClick={() => { setMode("video"); setError(null); }}><Film className="h-4 w-4" /> Upload saved video instead</Button>}
 
-      <PrimaryButton disabled={!ready || loading} onClick={go}>
-        {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> {stage ?? "Reading recipe…"}</>) : (<>Pinch it <ArrowRight className="h-5 w-5" /></>)}
-      </PrimaryButton>
+      <Button className="h-auto w-full whitespace-normal py-4 text-base" disabled={!ready || loading || (mode === "video" && videoText !== null && !videoText.trim())} onClick={go}>
+        {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> {stage ?? "Reading recipe…"}</>) : (<>{mode === "video" ? videoText === null ? "Analyze video" : "Use this recipe" : "Pinch it"} <ArrowRight className="h-5 w-5" /></>)}
+      </Button>
     </section>
   );
 }
