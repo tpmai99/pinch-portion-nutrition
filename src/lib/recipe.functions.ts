@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { ParsedRecipe } from "./recipe";
-import { hasRecipeCaption, isTikTokRecipeLink, TIKTOK_RECIPE_ACCESS_MESSAGE } from "./recipe-links";
+import { extractTikTokPost, hasRecipeCaption, isTikTokRecipeLink, TIKTOK_RECIPE_ACCESS_MESSAGE, tiktokShortLinkFallback } from "./recipe-links";
 import { createVideoTextDecoder, VIDEO_RECIPE_PROMPT } from "./video";
 import { extractFacebookRecipe, FACEBOOK_RECIPE_ACCESS_MESSAGE, isFacebookRecipeLink } from "./facebook-recipe";
 export type { ParsedRecipe } from "./recipe";
@@ -44,7 +44,7 @@ function stripHtml(html: string) {
     .trim();
 }
 
-async function textFromUrl(url: string): Promise<string> {
+async function textFromUrl(url: string, images?: string[]): Promise<string> {
   const host = new URL(url).hostname.replace(/^www\./, "");
   if (host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be") {
     let parts: string[] = [];
@@ -81,6 +81,36 @@ async function textFromUrl(url: string): Promise<string> {
     );
   }
   if (isTikTokRecipeLink(url)) {
+    const mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+    // Photo carousels keep the recipe in the images, so read the embedded post data first.
+    for (const candidate of [url, tiktokShortLinkFallback(url)].filter((u): u is string => !!u)) {
+      try {
+        const page = await fetch(candidate, { redirect: "follow", headers: { "User-Agent": mobileUA, Accept: "text/html", "Accept-Language": "en" } });
+        if (!page.ok || !isTikTokRecipeLink(page.url)) { await page.body?.cancel(); continue; }
+        const post = extractTikTokPost(await page.text());
+        if (!post) continue;
+        if (post.imageUrls.length && images) {
+          const loaded = await Promise.all(post.imageUrls.map(async (src) => {
+            try {
+              const r = await fetch(src, { headers: { "User-Agent": mobileUA, Referer: "https://www.tiktok.com/" } });
+              if (!r.ok) return null;
+              const type = r.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+              if (!type.startsWith("image/")) return null;
+              const bytes = new Uint8Array(await r.arrayBuffer());
+              let bin = "";
+              for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+              return `data:${type};base64,${btoa(bin)}`;
+            } catch { return null; }
+          }));
+          const ok = loaded.filter((x): x is string => !!x);
+          if (ok.length) {
+            images.push(...ok);
+            return `TikTok photo post by ${post.author ?? "creator"} with ${ok.length} photos (attached in order). Read the ingredients, amounts, servings and steps written on the photos.\nCaption:\n${post.caption}`;
+          }
+        }
+        if (hasRecipeCaption(post.caption)) return `TikTok caption by ${post.author ?? "creator"}:\n${post.caption}`;
+      } catch { /* try the next route */ }
+    }
     try {
       let resolvedUrl = url;
       if (host === "tt.site" || host.endsWith(".tt.site") || host === "vm.tiktok.com" || host === "vt.tiktok.com") {
