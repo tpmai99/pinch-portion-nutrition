@@ -12,7 +12,10 @@ export type IngredientNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   // Optional only for recipes imported before per-ingredient estimates existed.
   salt?: number | null; freeSugar?: number | null;
+  // Per-100 g macros, so Pinch can estimate an amount the user enters for unquantified items.
+  per100g?: Per100g | null;
 };
+export type Per100g = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
 
 function addEstimate(a: number | null | undefined, b: number | null | undefined): number | null {
   return a == null || b == null ? null : a + b;
@@ -20,6 +23,8 @@ function addEstimate(a: number | null | undefined, b: number | null | undefined)
 export type RecipeIngredient = {
   name: string; dutchName: string; quantity: number | null; unit: string; category: string;
   changedFrom: string | null; nutrition: IngredientNutrition;
+  // The source marks it optional / to taste, or no amount is stated; the user can add grams.
+  optional?: boolean;
 };
 export type RecipeVersion = {
   title: string; servings: number;
