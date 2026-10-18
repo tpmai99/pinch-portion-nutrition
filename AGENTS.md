@@ -15,3 +15,5 @@
 - Normalize legacy ingredient preparation through the browser-safe recipe selector and request product-only names during import; preserve preparation in cooking so names stay shopping-ready without losing the original method.
 - Nearby store distances come from Google Maps lookups on the server, never invented numbers; why: shoppers rely on them to pick a branch.
 - Keep gram/cup unit conversions in the browser-safe `src/lib/units.ts`; when an ingredient's density is unknown, keep grams instead of guessing a cup amount.
+- Structured-output schemas for the import model must declare every property as required (optional properties break the AI gateway's response format); use null instead of optional.
+- Per-ingredient nutrition comes from the import model; overview macros are recomputed in the browser-safe recipe module from the ingredients actually in the meal (adjustments, removals), never patched in the UI.
