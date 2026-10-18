@@ -34,6 +34,7 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/peanut|almond\b|walnut|cashew|pistachio|pecan|hazelnut|nut\b|nuts\b/, 130],
   [/bread ?crumb|panko|crouton/, 110],
   [/cocoa/, 120],
+  [/bean ?sprout|tauge|alfalfa|sunflower sprout/, 65],
   [/beans?\b|chickpea|lentil|legume/, 180],
   [/corn\b|peas?\b/, 150],
   [/spinach|kale|lettuce|arugula|rocket|greens\b|cabbage/, 60],
@@ -48,6 +49,19 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/apple|banana|berry|berries|strawberr|blueberr|raspberr|mango|pineapple/, 150],
   [/stock|broth|water\b|juice/, 240],
 ];
+
+/** Ingredients that are naturally measured as liquids: keep volume (ml) in metric mode.
+ *  Everything else given in volume units converts to grams when its density is known. */
+const LIQUID: RegExp[] = [
+  /water/, /milk|buttermilk/, /oil/, /stock|broth|bouillon/, /juice/,
+  /cream(?! of)/, /wine|beer|cider/, /vinegar/, /soy ?sauce|fish ?sauce|oyster ?sauce/,
+  /honey|syrup|molasses|treacle/, /sauce\b/, /dressing/, /melted/,
+];
+
+export function isLiquid(name: string): boolean {
+  const n = name.toLowerCase();
+  return LIQUID.some((re) => re.test(n));
+}
 
 export function gramsPerCup(name: string): number | null {
   const n = name.toLowerCase();
@@ -87,7 +101,12 @@ export function convertAmount(
   const fallback = `${formatQuantity(q)}${unit ? " " + unit : ""}`;
   if (mode === "metric") {
     if (massG) return gramsText(massG);
-    if (volMl) return mlText(volMl);
+    if (volMl) {
+      // Solids should not be shown in ml — convert to grams when the density is known.
+      const density = gramsPerCup(name);
+      if (!isLiquid(name) && density) return gramsText((volMl * density) / 240);
+      return mlText(volMl);
+    }
     return fallback;
   }
   if (volMl) return cupsText(volMl / 240);

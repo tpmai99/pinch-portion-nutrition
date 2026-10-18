@@ -34,6 +34,16 @@ describe("unit conversion", () => {
     expect(gramsPerCup("minced beef")).toBeNull();
   });
 
+  it("metric mode shows grams, not ml, for solid ingredients given in volume", () => {
+    // Beansprouts are a solid — 1 cup ≈ 65 g, never "240 ml".
+    expect(gramsPerCup("beansprouts")).toBe(65);
+    expect(gramsPerCup("bean sprouts")).toBe(65);
+    expect(convertAmount("beansprouts", 1, "cup", 2, 2, "metric")).toBe("65 g");
+    // Liquids stay in ml.
+    expect(convertAmount("milk", 1, "cup", 2, 2, "metric")).toBe("240 ml");
+    expect(convertAmount("soy sauce", 2, "tbsp", 2, 2, "metric")).toBe("30 ml");
+  });
+
   it("scales quantities with portions before converting", () => {
     // recipe for 2 portions, now 4: 100 g flour -> 200 g -> 200/120 ≈ 1.67 cups
     expect(convertAmount("flour", 100, "g", 2, 4, "cups")).toBe("1⅔ cups");
