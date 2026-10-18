@@ -61,8 +61,8 @@ async function textFromUrl(url: string): Promise<string> {
       if (r.ok) {
         const html = await r.text();
         const desc =
-          html.match(/<meta[^>]+(?:property|name)="(?:og:)?description"[^>]+content="([^"]*)"/i)?.[1] ??
-          html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
+          html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1] ??
+          html.match(/<meta[^>]+(?:property|name)="(?:og:)?description"[^>]+content="([^"]*)"/i)?.[1] ?? "";
         if (desc) parts.push("Video description:\n" + desc.replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
       }
     } catch { /* title alone may be enough */ }
