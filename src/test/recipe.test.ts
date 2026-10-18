@@ -59,10 +59,10 @@ describe("recipe and grocery choices", () => {
   it("merges repeat mentions of the same ingredient into one shopping row", () => {
     const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 1, freeSugar: 2 };
     const base = { title: "Pad thai", servings: 2, ingredients: [
-      { name: "Peanuts", dutchName: "pinda's", quantity: 30, unit: "g", category: "pantry" },
-      { name: "Beansprouts", dutchName: "tauge", quantity: 100, unit: "g", category: "produce" },
-      { name: "Peanuts, crushed", dutchName: "pinda's", quantity: 2, unit: "tbsp", category: "pantry" },
-      { name: "beansprouts", dutchName: "tauge", quantity: 1, unit: "handful", category: "produce" },
+      ing({ name: "Peanuts", dutchName: "pinda's", quantity: 30, unit: "g", category: "pantry", nutrition: { kcal: 170, protein: 8, carbs: 5, fat: 14 } }),
+      ing({ name: "Beansprouts", dutchName: "tauge", quantity: 100, unit: "g", category: "produce", nutrition: { kcal: 30, protein: 3, carbs: 6, fat: 0 } }),
+      ing({ name: "Peanuts, crushed", dutchName: "pinda's", quantity: 2, unit: "tbsp", category: "pantry", nutrition: { kcal: 100, protein: 5, carbs: 3, fat: 8 } }),
+      ing({ name: "beansprouts", dutchName: "tauge", quantity: 1, unit: "handful", category: "produce", nutrition: { kcal: 10, protein: 1, carbs: 2, fat: 0 } }),
     ], steps: ["Stir fry"], nutrition: n };
     const r: ParsedRecipe = { ...base, healthier: base, changes: [] };
     const selected = chooseRecipe(r, "yummy");
