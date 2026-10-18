@@ -268,9 +268,12 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
       <Back onClick={onBack} />
       <Title sub={`Scaled for ${portions} portion${portions > 1 ? "s" : ""}`}>{recipe.title}</Title>
       <div className="mb-4 grid grid-cols-2 gap-2" role="group" aria-label="Recipe version">
-        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setChecked(new Set()); }}>Yummy · Original</Button>
-        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Healthier version</Button>
+        <Button variant={choice === "yummy" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "yummy"} onClick={() => { onChoice("yummy"); setChecked(new Set()); }}>Same as original · 1:1</Button>
+        <Button variant={choice === "healthier" ? "default" : "outline"} className="h-auto whitespace-normal py-3" aria-pressed={choice === "healthier"} onClick={() => { onChoice("healthier"); setChecked(new Set()); }}>Modify to healthier</Button>
       </div>
+      <p className="mb-4 text-sm text-muted-foreground">{choice === "yummy"
+        ? "Original ingredients and method from your source, with quantities scaled to your chosen portions. No healthier substitutions."
+        : "Suggested changes by Pinch, not the original recipe. Cooking steps, estimated nutrition and shopping items reflect this version."}</p>
       {choice === "healthier" && <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{original.changes.map((change, i) => <li key={i}>{change}</li>)}</ul>}
       <MacroCard recipe={recipe} />
       <div className="mb-5 text-sm text-muted-foreground">
