@@ -22,10 +22,17 @@ const versionSchema = z.object({
       quantity: z.number().nullable(),
       unit: z.string(),
       category: z.string(),
+      // The source marks it optional / to taste, or no amount is stated.
+      optional: z.boolean(),
       // Healthier version only: the original ingredient name this item replaces; null when unchanged.
       changedFrom: z.string().nullable(),
       // Rough estimate for the full listed amount of this ingredient.
-      nutrition: z.object({ kcal: z.number(), protein: z.number(), carbs: z.number(), fat: z.number(), salt: z.number().nullable(), freeSugar: z.number().nullable() }),
+      nutrition: z.object({
+        kcal: z.number(), protein: z.number(), carbs: z.number(), fat: z.number(),
+        salt: z.number().nullable(), freeSugar: z.number().nullable(),
+        // Per-100 g macros so Pinch can estimate an amount the user enters for unquantified items.
+        per100g: z.object({ kcal: z.number().nullable(), protein: z.number().nullable(), carbs: z.number().nullable(), fat: z.number().nullable() }),
+      }),
     }),
   ),
   steps: z.array(z.string()),
