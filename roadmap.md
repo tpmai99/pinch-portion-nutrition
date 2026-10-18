@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Verify saved-reel analysis of on-screen text and narration, and let users review extracted ingredients and instructions before importing
+- [x] Verify saved-reel analysis of on-screen text and narration, and let users review extracted ingredients and instructions before importing
 
 - [x] Correct TikTok shared-link handling and verify upload guidance instead of claiming the video contains no recipe
 
