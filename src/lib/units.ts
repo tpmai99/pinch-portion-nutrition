@@ -34,6 +34,7 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/peanut|almond\b|walnut|cashew|pistachio|pecan|hazelnut|nut\b|nuts\b/, 130],
   [/bread ?crumb|panko|crouton/, 110],
   [/cocoa/, 120],
+  [/bean ?sprout|tauge|alfalfa|sunflower sprout/, 65],
   [/beans?\b|chickpea|lentil|legume/, 180],
   [/corn\b|peas?\b/, 150],
   [/spinach|kale|lettuce|arugula|rocket|greens\b|cabbage/, 60],
@@ -47,7 +48,6 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/carrot|celery|pepper\b|zucchini|courgette|aubergine|eggplant/, 130],
   [/apple|banana|berry|berries|strawberr|blueberr|raspberr|mango|pineapple/, 150],
   [/stock|broth|water\b|juice/, 240],
-  [/bean ?sprout|tauge|alfalfa|sunflower sprout/, 65],
 ];
 
 /** Ingredients that are naturally measured as liquids: keep volume (ml) in metric mode.
