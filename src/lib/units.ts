@@ -21,6 +21,7 @@ const VOL_ML: Record<string, number> = {
 const GRAMS_PER_CUP: [RegExp, number][] = [
   [/flour/, 120],
   [/sugar|caster|sucrose/, 200],
+  [/^(?:(?:sea|table|kosher|fine|coarse|rock|iodised|iodized)\s+)*salt$/, 288],
   [/rice/, 185],
   [/oat\b|oats\b|oatmeal/, 90],
   [/butter|ghee|margarine|shortening/, 227],
