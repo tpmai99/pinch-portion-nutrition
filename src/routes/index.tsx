@@ -369,20 +369,24 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
         {recipe.ingredients.map((ing, i) => {
           const isRemoved = removed.has(i);
           const m = adjust[i] ?? 1;
+          const ingA = withGrams.ingredients[i] ?? ing;
           const changeLabel = ingredientChangeLabel(ing, recipe, original, portions);
           return (
             <li key={i} className={cn(isRemoved && "opacity-60")}>
               <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
+                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>
+                    {ing.name}
+                    {ingA.optional && <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 align-middle text-[10px] uppercase tracking-wide text-muted-foreground">Optional</span>}
+                  </span>
                   {changeLabel && <span className="text-xs text-accent">{changeLabel}</span>}
                   {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
                   {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-                  <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
-                  <span className="text-xs font-medium text-foreground">{isRemoved ? "0 kcal" : Number.isFinite(ing.nutrition?.kcal) ? `≈ ${Math.round(ing.nutrition.kcal * m / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
+                  <span className="text-sm text-muted-foreground">{ingredientLine(ingA, recipe.servings, portions, unitMode, m)}</span>
+                  <span className="text-xs font-medium text-foreground">{isRemoved ? "0 kcal" : Number.isFinite(ingA.nutrition?.kcal) ? `≈ ${Math.round(ingA.nutrition.kcal * m / Math.max(1, recipe.servings))} kcal` : "kcal unknown"}</span>
                 </span>
                 <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open === i && "rotate-180")} />
               </button>
