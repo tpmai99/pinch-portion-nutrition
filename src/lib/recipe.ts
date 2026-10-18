@@ -1,4 +1,5 @@
 import { splitIngredientName, dutchGroceryTerm } from "./grocery";
+import { formatQuantity } from "./scale";
 
 export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
@@ -11,16 +12,45 @@ export type RecipeVersion = {
 };
 export type ParsedRecipe = RecipeVersion & { healthier: RecipeVersion; changes: string[] };
 export type RecipeChoice = "yummy" | "healthier";
+
+/** One shopping row per ingredient: the source often lists an item twice (e.g. in the sauce, then as garnish). */
+function mergeIngredients(ingredients: RecipeVersion["ingredients"]): { merged: RecipeVersion["ingredients"]; extras: string[] } {
+  const groups = new Map<string, { ing: RecipeVersion["ingredients"][number]; others: { quantity: number | null; unit: string }[] }>();
+  for (const ing of ingredients) {
+    const key = ing.name.trim().toLowerCase();
+    const group = groups.get(key);
+    if (!group) { groups.set(key, { ing: { ...ing }, others: [] }); continue; }
+    if (ing.quantity != null && (ing.unit || "") === (group.ing.unit || "")) {
+      group.ing.quantity = (group.ing.quantity ?? 0) + ing.quantity;
+    } else {
+      group.others.push({ quantity: ing.quantity, unit: ing.unit });
+    }
+  }
+  const extras: string[] = [];
+  const merged = [...groups.values()].map(({ ing, others }) => {
+    if (others.length) {
+      const amounts = others.map(o => o.quantity == null ? "extra to taste" : `${formatQuantity(o.quantity)}${o.unit ? " " + o.unit : ""}`).join(" + ");
+      extras.push(`${ing.name}: add ${amounts} (listed separately in the source)`);
+    }
+    return ing;
+  });
+  return { merged, extras };
+}
+
 export function chooseRecipe(recipe: ParsedRecipe, choice: RecipeChoice): RecipeVersion {
   const version = choice === "healthier" ? recipe.healthier : recipe;
   const preparation: string[] = [];
-  const ingredients = version.ingredients.map(ingredient => {
-    const split = splitIngredientName(ingredient.name);
-    if (split.preparation) preparation.push(`${split.name}: ${split.preparation}`);
-    const translated = dutchGroceryTerm(split.name);
-    return { ...ingredient, name: split.name, dutchName: translated !== split.name ? translated : dutchGroceryTerm(ingredient.dutchName) };
+  const split = version.ingredients.map(ingredient => {
+    const s = splitIngredientName(ingredient.name);
+    if (s.preparation) preparation.push(`${s.name}: ${s.preparation}`);
+    return { ...ingredient, name: s.name };
   });
-  return { ...version, ingredients, steps: [...preparation, ...version.steps] };
+  const { merged, extras } = mergeIngredients(split);
+  const ingredients = merged.map(ing => {
+    const translated = dutchGroceryTerm(ing.name);
+    return { ...ing, dutchName: translated !== ing.name ? translated : dutchGroceryTerm(ing.dutchName) };
+  });
+  return { ...version, ingredients, steps: [...preparation, ...extras, ...version.steps] };
 }
 // Planning budgets, not official per-meal recommendations: one third of
 // WHO adult daily salt limit and preferred free-sugar target at 2,000 kcal.

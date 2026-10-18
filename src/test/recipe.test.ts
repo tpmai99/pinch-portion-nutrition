@@ -51,4 +51,21 @@ describe("recipe and grocery choices", () => {
     expect(chooseRecipe(r, "healthier").steps[0]).toBe("Fry extra lean beef");
     expect(chooseRecipe(r, "healthier").nutrition.kcal).toBe(400);
   });
+  it("merges repeat mentions of the same ingredient into one shopping row", () => {
+    const n = { kcal: 500, protein: 20, carbs: 40, fat: 15, salt: 1, freeSugar: 2 };
+    const base = { title: "Pad thai", servings: 2, ingredients: [
+      { name: "Peanuts", dutchName: "pinda's", quantity: 30, unit: "g", category: "pantry" },
+      { name: "Beansprouts", dutchName: "tauge", quantity: 100, unit: "g", category: "produce" },
+      { name: "Peanuts, crushed", dutchName: "pinda's", quantity: 2, unit: "tbsp", category: "pantry" },
+      { name: "beansprouts", dutchName: "tauge", quantity: 1, unit: "handful", category: "produce" },
+    ], steps: ["Stir fry"], nutrition: n };
+    const r: ParsedRecipe = { ...base, healthier: base, changes: [] };
+    const selected = chooseRecipe(r, "yummy");
+    expect(selected.ingredients.map(i => i.name)).toEqual(["Peanuts", "Beansprouts"]);
+    expect(selected.ingredients[0]?.quantity).toBe(30);
+    expect(selected.ingredients[0]?.dutchName).toBe("pinda's");
+    expect(selected.steps).toContain("Peanuts: crushed");
+    expect(selected.steps).toContain("Peanuts: add 2 tbsp (listed separately in the source)");
+    expect(selected.steps).toContain("Beansprouts: add 1 handful (listed separately in the source)");
+  });
 });
