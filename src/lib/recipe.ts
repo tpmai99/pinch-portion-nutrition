@@ -7,7 +7,7 @@ export type RecipeNutrition = {
 };
 export type RecipeVersion = {
   title: string; servings: number;
-  ingredients: { name: string; dutchName: string; quantity: number | null; unit: string; category: string; changedFrom?: string | null }[];
+  ingredients: { name: string; dutchName: string; quantity: number | null; unit: string; category: string; changedFrom?: string | null | undefined }[];
   steps: string[]; nutrition: RecipeNutrition;
 };
 export type ParsedRecipe = RecipeVersion & { healthier: RecipeVersion; changes: string[] };
