@@ -691,7 +691,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
 
 function ShopList({ store, mode, loc, address, items, onBack, onCook }: {
   store: (typeof STORES)[number]; mode: "online" | "visit"; loc: string; address: string | null;
-  items: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }[]; onBack: () => void; onCook: () => void;
+  items: { name: string; dutchName: string; category: string; qty: string; changeLabel: string | null }[]; onBack: () => void; onCook: () => void;
 }) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category));
