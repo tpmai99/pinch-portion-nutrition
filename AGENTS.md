@@ -23,3 +23,4 @@
 - Recognize TikTok shared-link aliases before generic HTML import and require concrete recipe detail in post captions; why: unrelated page chrome and short titles are not video transcripts.
 - Extract Facebook recipes from complete embedded post messages before applying any generic page truncation; reject preview-only content because later ingredient sections otherwise disappear.
 - Derive whole-list store coverage in the browser-safe store-coverage module from canonical ingredient names; saved catalog links and search terms never count as branch stock, so incomplete verification requires acknowledgement before shopping.
+- Read TikTok photo carousels from the post's embedded page data and send the downloaded photos to the import model; why: photo posts keep the recipe in the images, not the caption.
