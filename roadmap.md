@@ -1,3 +1,5 @@
 - [ ] Correct Jumbo's broken search link and verify grocery search behavior.
 - [ ] Check the supplied Jumbo minced-beef product page and use it for matching ingredients.
 - [ ] Test the shopping flow and note any unmatched-product limitations.
+- [ ] Add Yummy/original and Healthier ingredient choices without claiming unverified calorie reductions.
+- [ ] Translate known grocery searches to Dutch and allow correction of unfamiliar ingredients.
