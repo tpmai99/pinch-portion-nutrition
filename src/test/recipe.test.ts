@@ -48,6 +48,8 @@ describe("recipe and grocery choices", () => {
     const r: ParsedRecipe = { ...base, healthier: { ...base, ingredients: [{ name: "extra lean minced beef", dutchName: "extra mager rundergehakt", quantity: 400, unit: "g", category: "meat", changedFrom: "minced beef" }], steps: ["Fry extra lean beef"], nutrition: { ...n, kcal: 400 } }, changes: ["Use lean beef"] };
     expect(chooseRecipe(r, "yummy").ingredients[0]?.name).toBe("minced beef");
     expect(chooseRecipe(r, "healthier").ingredients[0]?.name).toBe("extra lean minced beef");
+    expect(chooseRecipe(r, "healthier").ingredients[0]?.changedFrom).toBe("minced beef");
+    expect(chooseRecipe(r, "yummy").ingredients[0]?.changedFrom).toBeUndefined();
     expect(chooseRecipe(r, "healthier").steps[0]).toBe("Fry extra lean beef");
     expect(chooseRecipe(r, "healthier").nutrition.kcal).toBe(400);
   });
