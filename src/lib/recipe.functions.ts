@@ -66,8 +66,14 @@ async function textFromUrl(url: string): Promise<string> {
         if (desc) parts.push("Video description:\n" + desc.replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
       }
     } catch { /* title alone may be enough */ }
-    if (parts.length) return parts.join("\n\n");
-    throw new Error("Couldn't read that YouTube video. Try pasting the recipe text instead.");
+    // A description with actual ingredient info is required — the title alone
+    // would force the AI to guess the recipe. YouTube blocks datacenter IPs
+    // from reading descriptions, so this fails more often than not.
+    const description = parts.find((p) => p.startsWith("Video description:"));
+    if (description) return parts.join("\n\n");
+    throw new Error(
+      "We could read the video's title, but YouTube blocks apps from reading video descriptions. Paste the recipe text below (open the video, tap …more under the title, copy the description) or upload a screenshot instead.",
+    );
   }
   if (host.includes("tiktok.com")) {
     const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
