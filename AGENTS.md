@@ -21,3 +21,4 @@
 - Uploaded cooking videos are first transcribed to plain recipe text by a video-capable Gemini chat model, then go through the normal text import; why: the import model does not accept video, and one import path keeps the schema rules in one place.
 - Video extraction separates visible text, narration, ingredients and instructions for review before normal import; shared upload validation and stream decoding live in a browser-safe video module to keep the flow testable.
 - Recognize TikTok shared-link aliases before generic HTML import and require concrete recipe detail in post captions; why: unrelated page chrome and short titles are not video transcripts.
+- Extract Facebook recipes from complete embedded post messages before applying any generic page truncation; reject preview-only content because later ingredient sections otherwise disappear.

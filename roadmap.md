@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Fix Facebook post extraction so topping ingredients, including beef, are not lost behind shortened previews; verified the exact shared link includes beef and noodles
+
 - [x] Verify saved-reel analysis of on-screen text and narration, and let users review extracted ingredients and instructions before importing
 
 - [x] Correct TikTok shared-link handling and verify upload guidance instead of claiming the video contains no recipe
