@@ -1,6 +1,6 @@
-- [ ] Correct Jumbo's broken search link and verify grocery search behavior.
-- [ ] Check the supplied Jumbo minced-beef product page and use it for matching ingredients.
-- [ ] Test the shopping flow and note any unmatched-product limitations.
-- [ ] Add Yummy/original and Healthier ingredient choices without claiming unverified calorie reductions.
-- [ ] Translate known grocery searches to Dutch and allow correction of unfamiliar ingredients.
-- [ ] Estimate salt/free sugars per portion, warn against clearly labeled meal budgets, and offer the healthier version.
+- [x] Correct Jumbo's broken search path; generic search can still return no results, so offer copyable Dutch names.
+- [x] Verify supplied lean beef and regular/extra-lean variants; match only compatible ingredients.
+- [x] Verify real recipe → warning → healthier version → Jumbo product flow; 12 tests pass.
+- [x] Add Yummy/original and Healthier ingredient choices with estimated nutrition.
+- [x] Generate Dutch grocery terms and allow search corrections.
+- [x] Estimate salt/free sugars per portion, warn against labeled planning budgets, and offer adjustment.
