@@ -29,3 +29,17 @@ export function dutchGroceryTerm(name: string) {
   };
   return terms[simple.toLowerCase()] ?? simple;
 }
+export type VerifiedProduct = { name: string; url: string; kcal: number | null };
+// Verified product pages only (supplied or checked by hand) — never generated. No stock guarantee.
+const VERIFIED: Record<string, { match: RegExp; exclude?: RegExp; product: VerifiedProduct }[]> = {
+  ah: [
+    { match: /chicken breast|chicken fillet|kipfilet|kipborst/i, exclude: /thigh|dij|gehakt|minced|ground|smoked|gerookt|vegan|vegetar/i,
+      product: { name: "AH Scharrel kipfilet 2 stuks", url: "https://www.ah.nl/producten/product/wi533083/ah-scharrel-kipfilet-2-stuks", kcal: null } },
+  ],
+};
+/** Recommended product for a store, from verified mappings only; null means "use search". */
+export function verifiedProduct(storeId: string, name: string): VerifiedProduct | null {
+  if (storeId === "jumbo") return jumboBeefProduct(name);
+  const hit = VERIFIED[storeId]?.find(v => v.match.test(name) && !v.exclude?.test(name));
+  return hit?.product ?? null;
+}

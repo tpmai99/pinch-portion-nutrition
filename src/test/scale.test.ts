@@ -23,10 +23,10 @@ describe("portion scaling", () => {
       expect(s.cartNote.length).toBeGreaterThan(20);
     }
   });
-  it("Lidl, Aldi and Dirk have no online shop; Albert Heijn, Jumbo and Ekoplaza do", () => {
+  it("Lidl, Aldi and Dirk have no online shop; Albert Heijn, Jumbo, Ekoplaza and Vomar do", () => {
     const none = STORES.filter((s) => s.cart === "none").map((s) => s.id).sort();
     const manual = STORES.filter((s) => s.cart === "manual").map((s) => s.id).sort();
     expect(none).toEqual(["aldi", "dirk", "lidl"]);
-    expect(manual).toEqual(["ah", "ekoplaza", "jumbo"]);
+    expect(manual).toEqual(["ah", "ekoplaza", "jumbo", "vomar"]);
   });
 });

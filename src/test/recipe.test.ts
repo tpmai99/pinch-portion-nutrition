@@ -195,3 +195,12 @@ describe("recipe and grocery choices", () => {
     expect(oil && ingredientChangeLabel(oil, h, r, 4)).toBe("Decreased by 60 ml");
   });
 });
+import { verifiedProduct } from "@/lib/grocery";
+describe("verified store products", () => {
+  it("recommends the AH chicken breast page only for chicken breast", () => {
+    expect(verifiedProduct("ah", "Chicken breast")?.url).toBe("https://www.ah.nl/producten/product/wi533083/ah-scharrel-kipfilet-2-stuks");
+    expect(verifiedProduct("ah", "kipfilet")).not.toBeNull();
+    expect(verifiedProduct("ah", "Chicken thigh")).toBeNull();
+    expect(verifiedProduct("jumbo", "Chicken breast")).toBeNull();
+  });
+});

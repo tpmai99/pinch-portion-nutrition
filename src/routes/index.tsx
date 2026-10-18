@@ -11,7 +11,7 @@ import { convertAmount, type UnitMode } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
-import { jumboBeefProduct } from "@/lib/grocery";
+import { verifiedProduct } from "@/lib/grocery";
 import { CookingGuide } from "@/components/CookingGuide";
 
 export const Route = createFileRoute("/")({
@@ -604,7 +604,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
   const [search, setSearch] = useState(item.dutchName);
   const [copied, setCopied] = useState(false);
   const [linkState, setLinkState] = useState<"idle" | "copied" | "manual">("idle");
-  const product = store.id === "jumbo" && !/\d+(?:[.,]\d+)?\s*%/.test(item.name) ? jumboBeefProduct(search) : null;
+  const product = /\d+(?:[.,]\d+)?\s*%/.test(item.name) ? null : (verifiedProduct(store.id, search) ?? verifiedProduct(store.id, item.name));
   const productUrl = product?.url ?? store.searchUrl(search);
   return (
     <li className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", done && "opacity-50")}>
@@ -618,7 +618,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
         {mode === "online" && <>
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
-          {product && <p className="mt-1 text-xs text-muted-foreground">{product.name} · {product.kcal} kcal/100 g · choose packs for your recipe amount</p>}
+          {product && <p className="mt-1 text-xs text-muted-foreground">Recommended: {product.name}{product.kcal != null ? ` · ${product.kcal} kcal/100 g` : ""} · choose packs for your recipe amount</p>}
           <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(search); setCopied(true); } catch { setCopied(false); } }}>{copied ? "Copied" : "Copy Dutch name"}</Button>
           {store.id === "jumbo" && <>
             <Button size="sm" variant="ghost" className="mt-1" onClick={async () => { try { await navigator.clipboard.writeText(productUrl); setLinkState("copied"); } catch { setLinkState("manual"); } }}>{linkState === "copied" ? "Link copied" : "Copy link"}</Button>
