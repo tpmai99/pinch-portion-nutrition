@@ -314,21 +314,38 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
       {unitMode === "cups" && <p className="mb-3 text-xs text-muted-foreground">Cup amounts are approximate conversions; grams follow the recipe exactly.</p>}
       <ul className="mb-8 divide-y divide-border rounded-3xl border border-border bg-card shadow-soft">
         {recipe.ingredients.map((ing, i) => {
-          const on = checked.has(i);
+          const isRemoved = removed.has(i);
+          const m = adjust[i] ?? 1;
           return (
-            <li key={i}>
-              <button onClick={() => { const s = new Set(checked); on ? s.delete(i) : s.add(i); setChecked(s); }}
+            <li key={i} className={cn(isRemoved && "opacity-60")}>
+              <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-                <span className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-lg border",
-                  on ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
-                  {on && <Check className="h-4 w-4" />}
-                </span>
-                <span className={cn("flex flex-1 flex-col gap-0.5", on && "text-muted-foreground")}>
-                  <span className={cn(on && "line-through")}>{ing.name}</span>
+                <span className="flex flex-1 flex-col gap-0.5">
+                  <span className={cn(isRemoved && "text-muted-foreground line-through")}>{ing.name}</span>
                   {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                  {isRemoved && <span className="text-xs text-destructive">Removed from this meal</span>}
+                  {m !== 1 && !isRemoved && <span className="text-xs text-accent">Amount × {m === 0.5 ? "½" : m === 1.5 ? "1½" : m}</span>}
                 </span>
-                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode, m)}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open === i && "rotate-180")} />
               </button>
+              {open === i && (
+                <div className="border-t border-border px-4 py-3">
+                  <p className="mb-2 text-xs text-muted-foreground">How much do you want to eat?</p>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {[0.5, 1, 1.5, 2].map((v) => (
+                      <button key={v} aria-pressed={m === v} onClick={() => onAdjust(i, v)}
+                        className={cn("rounded-full border px-3 py-1 text-xs",
+                          m === v ? "border-accent bg-accent text-accent-foreground" : "border-border text-muted-foreground")}>
+                        ×{v === 0.5 ? "½" : v === 1.5 ? "1½" : v}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => onRemove(i, !isRemoved)} className="text-xs text-muted-foreground underline">
+                    {isRemoved ? "Add back to this meal" : "I'll skip this ingredient"}
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}
