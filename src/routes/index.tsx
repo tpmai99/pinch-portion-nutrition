@@ -292,7 +292,8 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
       <MacroCard recipe={{ ...recipe, nutrition }} />
       {tweaked && <p className="-mt-3 mb-4 text-xs text-muted-foreground">Nutrition includes your ingredient changes. Unknown salt or free sugars cannot be recalculated; re-import older recipes for ingredient estimates.</p>}
       <div className="mb-5 text-sm text-muted-foreground">
-        <p>Estimated per portion: salt {nutrition.salt == null ? "unknown" : `${nutrition.salt.toFixed(1)} g`} · free sugars {nutrition.freeSugar == null ? "unknown" : `${nutrition.freeSugar.toFixed(1)} g`}</p>
+        <p>Estimated per portion: salt {nutrition.salt == null ? "unknown" : `${nutrition.saltAtLeast ? "at least " : ""}${nutrition.salt.toFixed(1)} g`} · free sugars {nutrition.freeSugar == null ? "unknown" : `${nutrition.freeSugarAtLeast ? "at least " : ""}${nutrition.freeSugar.toFixed(1)} g`}</p>
+        {(nutrition.saltAtLeast || nutrition.freeSugarAtLeast) && <p className="mt-1 text-xs">“At least” means some ingredients have no estimate, so the real amount may be higher.</p>}
         <p className="mt-1 text-xs">Meal planning budgets: 1.7 g salt and 8.3 g free sugars (one third of WHO adult daily guidance: less than 5 g salt; preferably 25 g free sugars at 2,000 kcal). Not official per-meal limits or personalised advice. All nutrition is estimated.</p>
         <a className="mt-1 inline-block underline" href="https://www.who.int/news-room/fact-sheets/detail/healthy-diet" target="_blank" rel="noreferrer">WHO guidance</a>
       </div>

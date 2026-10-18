@@ -5,6 +5,8 @@ import { baseQuantity, gramsPerCup } from "./units";
 export type RecipeNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
   salt: number | null; freeSugar: number | null;
+  // Computed in the browser only (never part of the import schema): the value is a minimum.
+  saltAtLeast?: boolean; freeSugarAtLeast?: boolean;
 };
 export type IngredientNutrition = {
   kcal: number; protein: number; carbs: number; fat: number;
@@ -157,24 +159,32 @@ export function applyAdjustments(r: RecipeVersion, adjust: Record<number, number
     }];
   });
   // Keep a known recipe estimate by applying only known changes. Unknown unchanged
-  // ingredients do not invalidate it; changing an unknown contribution still does.
-  const fallback = (key: "salt" | "freeSugar") => {
+  // ingredients do not invalidate it; increasing an unknown contribution turns it into
+  // a minimum ("at least"), while reducing or removing one makes it unknown.
+  const fallback = (key: "salt" | "freeSugar"): { value: number | null; atLeast: boolean } => {
     const original = r.nutrition[key];
-    if (original == null) return null;
+    if (original == null) return { value: null, atLeast: false };
     let delta = 0;
+    let atLeast = !!r.nutrition[key === "salt" ? "saltAtLeast" : "freeSugarAtLeast"];
     for (const [i, ing] of r.ingredients.entries()) {
       const multiplier = removed.has(i) ? 0 : (adjust[i] ?? 1);
       if (multiplier === 1) continue;
       const estimate = ingredientEstimate(ing, key);
-      if (estimate == null) return null;
+      if (estimate == null) {
+        if (multiplier > 1) { atLeast = true; continue; }
+        return { value: null, atLeast: false };
+      }
       delta += estimate * (multiplier - 1);
     }
-    return Math.max(0, original + delta / (r.servings > 0 ? r.servings : 1));
+    return { value: Math.max(0, original + delta / (r.servings > 0 ? r.servings : 1)), atLeast };
   };
-  return { ...r, ingredients, nutrition: { ...r.nutrition, salt: fallback("salt"), freeSugar: fallback("freeSugar") } };
+  const salt = fallback("salt");
+  const sugar = fallback("freeSugar");
+  return { ...r, ingredients, nutrition: { ...r.nutrition, salt: salt.value, saltAtLeast: salt.atLeast, freeSugar: sugar.value, freeSugarAtLeast: sugar.atLeast } };
 }
 
-/** Recompute per-portion nutrition from included ingredients; never treat unknown as zero. */
+/** Recompute per-portion nutrition from included ingredients; never treat unknown as zero.
+ *  When some ingredients are unknown, the known ones still give a minimum ("at least"). */
 export function computedNutrition(r: RecipeVersion): RecipeNutrition {
   const s = r.servings > 0 ? r.servings : 1;
   const sum = r.ingredients.reduce(
@@ -186,11 +196,21 @@ export function computedNutrition(r: RecipeVersion): RecipeNutrition {
     }),
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
-  const estimate = (key: "salt" | "freeSugar") => {
-    if (r.ingredients.some(ing => ingredientEstimate(ing, key) == null)) return r.nutrition[key];
-    return r.ingredients.reduce((total, ing) => total + (ingredientEstimate(ing, key) ?? 0), 0) / s;
+  const estimate = (key: "salt" | "freeSugar"): { value: number | null; atLeast: boolean } => {
+    const known = r.ingredients.map(ing => ingredientEstimate(ing, key));
+    const partial = known.reduce<number>((t, v) => t + (v ?? 0), 0) / s;
+    if (known.every(v => v != null)) return { value: partial, atLeast: false };
+    const total = r.nutrition[key];
+    const totalAtLeast = !!r.nutrition[key === "salt" ? "saltAtLeast" : "freeSugarAtLeast"];
+    if (total != null) return totalAtLeast ? { value: Math.max(total, partial), atLeast: true } : { value: total, atLeast: false };
+    return known.some(v => v != null && v > 0) ? { value: partial, atLeast: true } : { value: null, atLeast: false };
   };
-  return { ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s, salt: estimate("salt"), freeSugar: estimate("freeSugar") };
+  const salt = estimate("salt");
+  const sugar = estimate("freeSugar");
+  return {
+    ...sum, kcal: sum.kcal / s, protein: sum.protein / s, carbs: sum.carbs / s, fat: sum.fat / s,
+    salt: salt.value, saltAtLeast: salt.atLeast, freeSugar: sugar.value, freeSugarAtLeast: sugar.atLeast,
+  };
 }
 // Planning budgets, not official per-meal recommendations: one third of
 // WHO adult daily salt limit and preferred free-sugar target at 2,000 kcal.
