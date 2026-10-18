@@ -47,7 +47,21 @@ const GRAMS_PER_CUP: [RegExp, number][] = [
   [/carrot|celery|pepper\b|zucchini|courgette|aubergine|eggplant/, 130],
   [/apple|banana|berry|berries|strawberr|blueberr|raspberr|mango|pineapple/, 150],
   [/stock|broth|water\b|juice/, 240],
+  [/bean ?sprout|tauge|alfalfa|sunflower sprout/, 65],
 ];
+
+/** Ingredients that are naturally measured as liquids: keep volume (ml) in metric mode.
+ *  Everything else given in volume units converts to grams when its density is known. */
+const LIQUID: RegExp[] = [
+  /water/, /milk|buttermilk/, /oil/, /stock|broth|bouillon/, /juice/,
+  /cream(?! of)/, /wine|beer|cider/, /vinegar/, /soy ?sauce|fish ?sauce|oyster ?sauce/,
+  /honey|syrup|molasses|treacle/, /sauce\b/, /dressing/, /melted/,
+];
+
+export function isLiquid(name: string): boolean {
+  const n = name.toLowerCase();
+  return LIQUID.some((re) => re.test(n));
+}
 
 export function gramsPerCup(name: string): number | null {
   const n = name.toLowerCase();
