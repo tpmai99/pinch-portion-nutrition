@@ -60,7 +60,7 @@ async function textFromUrl(url: string): Promise<string> {
 }
 
 export const parseRecipe = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => Input.parse(d))
+  .validator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<ParsedRecipe> => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI is not configured.");

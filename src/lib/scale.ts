@@ -43,11 +43,11 @@ const BASE: Record<string, number> = {
 };
 
 export function estimateItemPrice(category: string) {
-  return BASE[category] ?? BASE.other;
+  return BASE[category] ?? 1.5;
 }
 
 export function estimateCart(categories: string[], store: Store) {
-  const sum = categories.reduce((s, c) => s + estimateItemPrice(c), 0);
+  const sum = categories.reduce((s: number, c) => s + estimateItemPrice(c), 0);
   return Math.round(sum * store.priceFactor * 100) / 100;
 }
 
