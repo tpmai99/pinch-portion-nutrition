@@ -1,0 +1,30 @@
+import type { RecipeVersion } from "./recipe";
+
+export type CookingTask = { id: number; instruction: string; summary: string };
+export type CookingSection = { id: "preparation" | "cooking"; title: string; tasks: CookingTask[] };
+
+const preparationAction = /\b(chop|slice|dice|cut|peel|wash|rinse|drain|crush|grate|mince|trim|separate|soak|marinate|measure|whisk|mix|combine|prepare|prep|pat dry)\b/i;
+const cookingAction = /\b(heat|preheat|fry|stir[- ]?fry|saut[eé]|cook|bake|roast|boil|simmer|steam|grill|sear|microwave|serve|plate|garnish|melt|toast|bring .* to .*boil)\b/i;
+
+/** Only move the leading preparation block into Preparation. Mixed instructions and
+ * later prep stay in Cooking so the source's cooking sequence is never reordered. */
+export function cookingSections(recipe: Pick<RecipeVersion, "steps">): CookingSection[] {
+  const preparation: CookingTask[] = [];
+  const cooking: CookingTask[] = [];
+  let phase: "preparation" | "cooking" = "preparation";
+  recipe.steps.forEach((raw, id) => {
+    const instruction = raw.trim();
+    if (!instruction) return;
+    if (/^(?:\d+[.)]\s*)?preparation\s*:?$/i.test(instruction)) return;
+    if (/^(?:\d+[.)]\s*)?cooking\s*:?$/i.test(instruction)) { phase = "cooking"; return; }
+    const isPrep = preparationAction.test(instruction) && !cookingAction.test(instruction);
+    if (!isPrep) phase = "cooking";
+    const summary = instruction.split(/(?<=[.!?])\s+/)[0] ?? instruction;
+    const task = { id, instruction, summary };
+    (phase === "preparation" ? preparation : cooking).push(task);
+  });
+  return [
+    { id: "preparation", title: "Preparation", tasks: preparation },
+    { id: "cooking", title: "Cooking", tasks: cooking },
+  ];
+}

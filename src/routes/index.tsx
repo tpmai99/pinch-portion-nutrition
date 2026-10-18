@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { applyAdjustments, chooseRecipe, computedNutrition, ingredientChangeLabel, nutritionWarnings, type RecipeChoice, type RecipeVersion } from "@/lib/recipe";
 import { jumboBeefProduct } from "@/lib/grocery";
+import { CookingGuide } from "@/components/CookingGuide";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,7 +68,7 @@ function App() {
           onCook={() => setStage("cook")} onShop={() => setShopOpen(true)} unitMode={unitMode} onUnitMode={setUnitMode}
           adjust={adjust} removed={removed} onAdjust={(i, m) => setAdjust((a) => ({ ...a, [i]: m }))} onRemove={(i, on) => setRemoved((s) => { const n = new Set(s); on ? n.add(i) : n.delete(i); return n; })} />
       )}
-      {stage === "cook" && activeRecipe && <CookStep recipe={activeRecipe} onBack={() => setStage("overview")} />}
+      {stage === "cook" && activeRecipe && <CookingGuide recipe={activeRecipe} onBack={() => setStage("overview")} />}
 
       {shopOpen && recipe && adjustedRecipe && (
         <ShopSheet recipe={adjustedRecipe} original={recipe} portions={portions} onClose={() => setShopOpen(false)}
@@ -562,60 +563,6 @@ function ShopSheet({ recipe, original, portions, onClose, onCook, unitMode, onUn
         )}
       </div>
     </div>
-  );
-}
-
-/* ---------- 5. cook ---------- */
-
-function CookStep({ recipe, onBack }: { recipe: RecipeVersion; onBack: () => void }) {
-  const [i, setI] = useState(0);
-  const [done, setDone] = useState<Set<number>>(new Set());
-  const total = recipe.steps.length;
-  const finished = done.size === total;
-
-  return (
-    <section className="animate-rise">
-      <Back onClick={onBack} />
-      <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
-        <span>Step {i + 1} of {total}</span>
-        <span>{done.size} done</span>
-      </div>
-      <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full bg-accent transition-all" style={{ width: `${(done.size / total) * 100}%` }} />
-      </div>
-
-      <div key={i} className="animate-rise mb-6 min-h-[16rem] rounded-[2rem] border border-border bg-card p-6 shadow-lift">
-        <div className="mb-4 font-display text-6xl text-accent">{String(i + 1).padStart(2, "0")}</div>
-        <p className="text-2xl leading-snug">{recipe.steps[i]}</p>
-        <button onClick={() => { const s = new Set(done); s.has(i) ? s.delete(i) : s.add(i); setDone(s); }}
-          className={cn("tactile mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm",
-            done.has(i) ? "bg-accent text-accent-foreground" : "bg-secondary")}>
-          <Check className="h-4 w-4" /> {done.has(i) ? "Done" : "Mark done"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <GhostButton disabled={i === 0} onClick={() => setI(i - 1)}><ArrowLeft className="h-5 w-5" /> Prev</GhostButton>
-        <PrimaryButton disabled={i === total - 1}
-          onClick={() => { setDone(new Set(done).add(i)); setI(i + 1); }}>
-          Next <ArrowRight className="h-5 w-5" />
-        </PrimaryButton>
-      </div>
-
-      {finished && (
-        <p className="mt-8 text-center font-display text-3xl italic">Bon appétit.</p>
-      )}
-
-      <div className="mt-8 flex flex-wrap gap-1.5">
-        {recipe.steps.map((_, n) => (
-          <button key={n} onClick={() => setI(n)}
-            className={cn("h-8 w-8 rounded-full text-xs",
-              n === i ? "bg-primary text-primary-foreground" : done.has(n) ? "bg-accent/20 text-accent" : "bg-secondary text-muted-foreground")}>
-            {n + 1}
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 
