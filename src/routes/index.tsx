@@ -384,7 +384,7 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 backdrop-blur-sm" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()}
           className="animate-rise max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-background p-5 pb-8 shadow-lift">
-          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode) }))}
+          <ShopList store={store} mode={mode} loc={loc} address={nearby[store.name]?.address ?? null} items={missingItems.map((m) => ({ name: m.name, dutchName: m.dutchName, category: m.category, qty: ingredientLine(m, recipe.servings, portions, unitMode), changedFrom: m.changedFrom ?? null }))}
             onBack={() => setMode(null)} onCook={onCook} />
         </div>
       </div>
@@ -616,7 +616,7 @@ function useProductImage(name: string) {
 }
 
 function ProductRow({ item, store, mode, done, onToggle }: {
-  item: { name: string; dutchName: string; category: string; qty: string }; store: (typeof STORES)[number];
+  item: { name: string; dutchName: string; category: string; qty: string; changedFrom: string | null }; store: (typeof STORES)[number];
   mode: "online" | "visit"; done: boolean; onToggle: () => void;
 }) {
   const img = useProductImage(item.name);
@@ -633,6 +633,7 @@ function ProductRow({ item, store, mode, done, onToggle }: {
       </div>
       <div className="min-w-0 flex-1">
         <div className={cn("font-medium capitalize", done && "line-through")}>{item.name}</div>
+        {item.changedFrom && <div className="text-xs text-accent">Changed · was: {item.changedFrom}</div>}
         <div className="text-xs text-muted-foreground">{item.qty} · {HOUSE_BRAND[store.id]} · {AISLE[item.category] ?? "Other"}</div>
         {mode === "online" && <>
           <input aria-label={`Dutch search for ${item.name}`} value={search} onChange={e => { setSearch(e.target.value); setCopied(false); }} className="mt-2 w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm" />
