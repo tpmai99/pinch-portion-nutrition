@@ -36,7 +36,7 @@ describe("unit conversion", () => {
 
   it("scales quantities with portions before converting", () => {
     // recipe for 2 portions, now 4: 100 g flour -> 200 g -> 200/120 ≈ 1.67 cups
-    expect(convertAmount("flour", 100, "g", 2, 4, "cups")).toBe("1.7 cups");
+    expect(convertAmount("flour", 100, "g", 2, 4, "cups")).toBe("1⅔ cups");
   });
 
   it("shows tablespoons for tiny cup amounts", () => {
