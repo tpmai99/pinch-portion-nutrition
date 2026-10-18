@@ -402,6 +402,18 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
                       </button>
                     ))}
                   </div>
+                  {ingA.quantity == null && (
+                    <div className="mb-3">
+                      <label htmlFor={`grams-${i}`} className="mb-1 block text-xs text-muted-foreground">Add an amount in grams (optional)</label>
+                      <div className="flex items-center gap-2">
+                        <input id={`grams-${i}`} type="number" min={1} inputMode="decimal" placeholder="e.g. 100"
+                          value={grams[i] ?? ""} onChange={(e) => onGrams(i, Number(e.target.value.replace(",", ".")))}
+                          className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums" />
+                        <span className="text-sm text-muted-foreground">g</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Kcal and macros update from the amount you add.</p>
+                    </div>
+                  )}
                   <button onClick={() => onRemove(i, !isRemoved)} className="text-xs text-muted-foreground underline">
                     {isRemoved ? "Add back to this meal" : "I'll skip this ingredient"}
                   </button>
