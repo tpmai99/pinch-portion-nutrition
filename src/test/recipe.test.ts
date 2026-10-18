@@ -15,7 +15,7 @@ describe("recipe and grocery choices", () => {
       expect(selected.steps[1]).toBe("Fry onions");
     }
     expect(recipe.ingredients[0]?.name).toContain("cut into 3 cm pieces");
-    expect(dutchGroceryTerm(base.ingredients[0].name)).toBe("bosui");
+    expect(dutchGroceryTerm(base.ingredients[0]?.name ?? "")).toBe("bosui");
   });
   it("uses the supplied lean beef page, and extra-lean beef has fewer label calories", () => {
     expect(jumboBeefProduct("lean minced beef")?.url).toBe("https://www.jumbo.com/producten/jumbo-rund-mager-gehakt-400-g-716180TRA");
