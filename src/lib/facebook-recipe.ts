@@ -9,9 +9,13 @@ export function isFacebookRecipeLink(url: string): boolean {
 export function extractFacebookRecipe(html: string): string | null {
   const candidates: string[] = [];
   for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
-    for (const match of script[1].matchAll(/"text"\s*:\s*("(?:[^"\\]|\\.)*")/g)) {
+    const body = script[1];
+    if (!body) continue;
+    for (const match of body.matchAll(/"text"\s*:\s*("(?:[^"\\]|\\.)*")/g)) {
+      const encoded = match[1];
+      if (!encoded) continue;
       try {
-        const text: unknown = JSON.parse(match[1]);
+        const text: unknown = JSON.parse(encoded);
         if (typeof text !== "string") continue;
         if (!/\bingredients\s*:/i.test(text) || !/\b(?:directions|instructions|method)\s*:/i.test(text)) continue;
         candidates.push(text);
