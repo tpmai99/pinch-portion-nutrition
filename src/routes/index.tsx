@@ -311,7 +311,10 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
                   on ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
                   {on && <Check className="h-4 w-4" />}
                 </span>
-                <span className={cn("flex-1", on && "text-muted-foreground line-through")}>{ing.name}</span>
+                <span className={cn("flex flex-1 flex-col gap-0.5", on && "text-muted-foreground")}>
+                  <span className={cn(on && "line-through")}>{ing.name}</span>
+                  {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                </span>
                 <span className="text-sm tabular-nums text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
               </button>
             </li>
@@ -429,7 +432,10 @@ function ShopSheet({ recipe, portions, onClose, onCook, unitMode, onUnitMode }: 
                         on ? "border-accent bg-accent text-accent-foreground" : "border-border")}>
                         {on && <Check className="h-4 w-4" />}
                       </span>
-                      <span className="flex-1">{ing.name}</span>
+                      <span className="flex flex-1 flex-col gap-0.5">
+                        <span>{ing.name}</span>
+                        {ing.changedFrom && <span className="text-xs text-accent">Changed · was: {ing.changedFrom}</span>}
+                      </span>
                       <span className="text-sm text-muted-foreground">{ingredientLine(ing, recipe.servings, portions, unitMode)}</span>
                     </button>
                   </li>
