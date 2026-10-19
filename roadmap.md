@@ -23,4 +23,4 @@
 - [x] Let the user adjust ingredient amounts (eat more/less); adjustments update the macros and shopping amounts
 - [x] Healthier-version badges: same-ingredient amount changes read "Decreased/Increased by X g or ml"; real swaps keep "Changed · was: …"
 
-- [ ] Treat "to taste" / unquantified ingredients as optional; let the user add grams and update kcal and shopping from that amount
+- [x] Treat "to taste" / unquantified ingredients as optional; let the user add grams and update kcal and shopping from that amount (verified on the pho import; AI-gateway import check blocked later by 402 credits)

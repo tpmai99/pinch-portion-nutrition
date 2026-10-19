@@ -402,9 +402,9 @@ function OverviewStep({ recipe, choice, onChoice, original, portions, onBack, on
                       </button>
                     ))}
                   </div>
-                  {ingA.quantity == null && (
+                  {(ingA.optional || recipe.ingredients[i]?.quantity == null) && (
                     <div className="mb-3">
-                      <label htmlFor={`grams-${i}`} className="mb-1 block text-xs text-muted-foreground">Add an amount in grams (optional)</label>
+                      <label htmlFor={`grams-${i}`} className="mb-1 block text-xs text-muted-foreground">Amount in grams (optional — leave empty for “to taste”)</label>
                       <div className="flex items-center gap-2">
                         <input id={`grams-${i}`} type="number" min={1} inputMode="decimal" placeholder="e.g. 100"
                           value={grams[i] ?? ""} onChange={(e) => onGrams(i, Number(e.target.value.replace(",", ".")))}
