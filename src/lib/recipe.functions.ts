@@ -4,7 +4,78 @@ import type { ParsedRecipe } from "./recipe";
 import { extractTikTokPost, hasRecipeCaption, isTikTokRecipeLink, TIKTOK_RECIPE_ACCESS_MESSAGE, tiktokShortLinkFallback } from "./recipe-links";
 import { createVideoTextDecoder, VIDEO_RECIPE_PROMPT } from "./video";
 import { extractFacebookRecipe, FACEBOOK_RECIPE_ACCESS_MESSAGE, isFacebookRecipeLink } from "./facebook-recipe";
+import { extractInstagramEmbed, INSTAGRAM_ACCESS_MESSAGE, instagramEmbedUrl, isInstagramLink } from "./instagram";
 export type { ParsedRecipe } from "./recipe";
+
+const IG_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+
+/** Sends a video data URL to the video-capable Gemini model and returns the extracted recipe text. */
+async function readVideoDataUrl(apiKey: string, videoDataUrl: string): Promise<string> {
+  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "fetch" },
+    body: JSON.stringify({
+      model: "google/gemini-3.8-flash",
+      stream: true,
+      messages: [{ role: "user", content: [
+        { type: "text", text: VIDEO_RECIPE_PROMPT },
+        { type: "video_url", video_url: { url: videoDataUrl } },
+      ] }],
+    }),
+  });
+  if (!r.ok || !r.body) {
+    const body = await r.text().catch(() => "");
+    console.error("video read failed", r.status, body);
+    if (r.status === 402) throw new Error("AI credits are used up for this workspace.");
+    if (r.status === 429) throw new Error("Too many requests — wait a moment and try again.");
+    if (r.status === 400) throw new Error("This video couldn't be read. Try a shorter MP4 or MOV clip.");
+    throw new Error(`Couldn't read the video (status ${r.status}).`);
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  const transcript = createVideoTextDecoder();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      transcript.push(dec.decode(value, { stream: true }));
+    }
+    transcript.push(dec.decode());
+  } finally {
+    reader.releaseLock();
+  }
+  return transcript.finish();
+}
+
+/** Instagram's public embed page needs no login and exposes the caption plus the reel's mp4. */
+async function instagramRecipeText(url: string, apiKey: string): Promise<string> {
+  const embed = instagramEmbedUrl(url);
+  if (!embed) throw new Error(INSTAGRAM_ACCESS_MESSAGE);
+  const page = await fetch(embed, { headers: { "User-Agent": IG_UA, Accept: "text/html", "Accept-Language": "en" } });
+  if (!page.ok) throw new Error(INSTAGRAM_ACCESS_MESSAGE);
+  const { caption, videoUrl } = extractInstagramEmbed(await page.text());
+  const parts: string[] = [];
+  if (videoUrl) {
+    try {
+      const v = await fetch(videoUrl, { headers: { "User-Agent": IG_UA, Referer: "https://www.instagram.com/" } });
+      if (v.ok && (v.headers.get("content-type") ?? "").startsWith("video/")) {
+        const bytes = new Uint8Array(await v.arrayBuffer());
+        if (bytes.length <= 25 * 1024 * 1024) {
+          let bin = "";
+          for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+          const text = await readVideoDataUrl(apiKey, `data:video/mp4;base64,${btoa(bin)}`);
+          if (text && text !== "NO_RECIPE") parts.push("Reel video transcription:\n" + text);
+        }
+      }
+    } catch (e) {
+      if (e instanceof Error && /credits|Too many requests/.test(e.message)) throw e;
+      // Fall back to the caption alone when the video can't be fetched or read.
+    }
+  }
+  if (caption) parts.push("Instagram caption:\n" + caption);
+  if (!parts.length) throw new Error(INSTAGRAM_ACCESS_MESSAGE);
+  return parts.join("\n\n");
+}
 
 const Input = z.object({
   text: z.string().max(40000).optional(),
@@ -51,8 +122,12 @@ function stripHtml(html: string) {
     .trim();
 }
 
-async function textFromUrl(url: string, images?: string[]): Promise<string> {
+async function textFromUrl(url: string, images?: string[], apiKey?: string): Promise<string> {
   const host = new URL(url).hostname.replace(/^www\./, "");
+  if (isInstagramLink(url)) {
+    if (!apiKey) throw new Error("AI is not configured.");
+    return instagramRecipeText(url, apiKey);
+  }
   if (host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be") {
     let parts: string[] = [];
     // oEmbed always works and gives title + channel.
@@ -158,7 +233,7 @@ export const parseRecipe = createServerFn({ method: "POST" })
 
     let source = data.text ?? "";
     const linkImages: string[] = [];
-    if (data.url) source = `${await textFromUrl(data.url, linkImages)}\n\n${source}`;
+    if (data.url) source = `${await textFromUrl(data.url, linkImages, apiKey)}\n\n${source}`;
     if (!source.trim() && !data.imageDataUrl && !linkImages.length) throw new Error("Add a recipe first.");
 
     const provider = createOpenAI({
@@ -223,40 +298,7 @@ export const readRecipeVideo = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ text: string }> => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI is not configured.");
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "fetch" },
-      body: JSON.stringify({
-        model: "google/gemini-3.8-flash",
-        stream: true,
-        messages: [{ role: "user", content: [
-          { type: "text", text: VIDEO_RECIPE_PROMPT },
-          { type: "video_url", video_url: { url: data.videoDataUrl } },
-        ] }],
-      }),
-    });
-    if (!r.ok || !r.body) {
-      const body = await r.text().catch(() => "");
-      console.error("video read failed", r.status, body);
-      if (r.status === 402) throw new Error("AI credits are used up for this workspace.");
-      if (r.status === 429) throw new Error("Too many requests — wait a moment and try again.");
-      if (r.status === 400) throw new Error("This video couldn't be read. Try a shorter MP4 or MOV clip.");
-      throw new Error(`Couldn't read the video (status ${r.status}).`);
-    }
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    const transcript = createVideoTextDecoder();
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        transcript.push(dec.decode(value, { stream: true }));
-      }
-      transcript.push(dec.decode());
-    } finally {
-      reader.releaseLock();
-    }
-    const text = transcript.finish();
+    const text = await readVideoDataUrl(apiKey, data.videoDataUrl);
     if (!text || text === "NO_RECIPE") throw new Error("No recipe found in that video.");
     return { text };
   });
