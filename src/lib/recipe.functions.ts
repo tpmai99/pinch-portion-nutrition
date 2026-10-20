@@ -298,40 +298,7 @@ export const readRecipeVideo = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ text: string }> => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI is not configured.");
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "fetch" },
-      body: JSON.stringify({
-        model: "google/gemini-3.8-flash",
-        stream: true,
-        messages: [{ role: "user", content: [
-          { type: "text", text: VIDEO_RECIPE_PROMPT },
-          { type: "video_url", video_url: { url: data.videoDataUrl } },
-        ] }],
-      }),
-    });
-    if (!r.ok || !r.body) {
-      const body = await r.text().catch(() => "");
-      console.error("video read failed", r.status, body);
-      if (r.status === 402) throw new Error("AI credits are used up for this workspace.");
-      if (r.status === 429) throw new Error("Too many requests — wait a moment and try again.");
-      if (r.status === 400) throw new Error("This video couldn't be read. Try a shorter MP4 or MOV clip.");
-      throw new Error(`Couldn't read the video (status ${r.status}).`);
-    }
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    const transcript = createVideoTextDecoder();
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        transcript.push(dec.decode(value, { stream: true }));
-      }
-      transcript.push(dec.decode());
-    } finally {
-      reader.releaseLock();
-    }
-    const text = transcript.finish();
+    const text = await readVideoDataUrl(apiKey, data.videoDataUrl);
     if (!text || text === "NO_RECIPE") throw new Error("No recipe found in that video.");
     return { text };
   });
