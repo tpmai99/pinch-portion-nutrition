@@ -29,11 +29,11 @@ export function extractInstagramEmbed(html: string): InstagramEmbed {
       .replace(/\\u0026/gi, "&")
       .replace(/\\\//g, "/")
       .replace(/\\u0025/gi, "%");
-  const videoMatch = html.match(/"video_url\\?":\\?"(https?:[^"]+?\.mp4[^"]*?)\\?"/);
-  const videoUrl = videoMatch ? unescape(videoMatch[1]) : null;
-  const captionMatch = html.match(/class="Caption"[\s\S]*?<a[^>]*>[^<]*<\/a><br\s*\/?><br\s*\/?>([\s\S]*?)<\/div>/);
+  const videoMatch = html.match(/"video_url\\?":\\?"(https?:[^"]+?\.mp4[^"]*?)\\?"/)?.[1];
+  const videoUrl = videoMatch ? unescape(videoMatch) : null;
+  const captionMatch = html.match(/class="Caption"[\s\S]*?<a[^>]*>[^<]*<\/a><br\s*\/?><br\s*\/?>([\s\S]*?)<\/div>/)?.[1];
   const caption = captionMatch
-    ? captionMatch[1]
+    ? captionMatch
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<[^>]+>/g, "")
         .replace(/&amp;/g, "&")
