@@ -27,7 +27,7 @@ export function extractInstagramEmbed(html: string): InstagramEmbed {
     s
       .replace(/\\u00253D/gi, "=")
       .replace(/\\u0026/gi, "&")
-      .replace(/\\\//g, "/")
+      .replace(/\\+\//g, "/")
       .replace(/\\u0025/gi, "%");
   const videoMatch = html.match(/"video_url\\?":\\?"(https?:[^"]+?\.mp4[^"]*?)\\?"/)?.[1];
   const videoUrl = videoMatch ? unescape(videoMatch) : null;
