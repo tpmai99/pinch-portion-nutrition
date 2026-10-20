@@ -122,8 +122,12 @@ function stripHtml(html: string) {
     .trim();
 }
 
-async function textFromUrl(url: string, images?: string[]): Promise<string> {
+async function textFromUrl(url: string, images?: string[], apiKey?: string): Promise<string> {
   const host = new URL(url).hostname.replace(/^www\./, "");
+  if (isInstagramLink(url)) {
+    if (!apiKey) throw new Error("AI is not configured.");
+    return instagramRecipeText(url, apiKey);
+  }
   if (host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be") {
     let parts: string[] = [];
     // oEmbed always works and gives title + channel.
@@ -229,7 +233,7 @@ export const parseRecipe = createServerFn({ method: "POST" })
 
     let source = data.text ?? "";
     const linkImages: string[] = [];
-    if (data.url) source = `${await textFromUrl(data.url, linkImages)}\n\n${source}`;
+    if (data.url) source = `${await textFromUrl(data.url, linkImages, apiKey)}\n\n${source}`;
     if (!source.trim() && !data.imageDataUrl && !linkImages.length) throw new Error("Add a recipe first.");
 
     const provider = createOpenAI({
