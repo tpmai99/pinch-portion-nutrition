@@ -24,21 +24,23 @@ export function tiktokShortLinkFallback(url: string): string | null {
   } catch { return null; }
 }
 
-export type TikTokPost = { caption: string; author: string | null; imageUrls: string[] };
+export type TikTokPost = { caption: string; author: string | null; imageUrls: string[]; videoUrl: string | null };
 
-/** Reads caption and photo-carousel images from a TikTok page's embedded data; photo posts keep the recipe in the images. */
+/** Reads caption, photo-carousel images and the video file from a TikTok page's embedded data. */
 export function extractTikTokPost(html: string, maxImages = 10): TikTokPost | null {
   const raw = html.match(/<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/)?.[1];
   if (!raw) return null;
-  let item: { desc?: string; author?: { uniqueId?: string; nickname?: string }; imagePost?: { images?: Array<{ imageURL?: { urlList?: string[] } }> } } | undefined;
+  let item: { desc?: string; author?: { uniqueId?: string; nickname?: string }; video?: { playAddr?: string; downloadAddr?: string }; imagePost?: { images?: Array<{ imageURL?: { urlList?: string[] } }> } } | undefined;
   try {
-    item = JSON.parse(raw)?.__DEFAULT_SCOPE__?.["webapp.reflow.video.detail"]?.itemInfo?.itemStruct
-      ?? JSON.parse(raw)?.__DEFAULT_SCOPE__?.["webapp.video-detail"]?.itemInfo?.itemStruct;
+    const scope = JSON.parse(raw)?.__DEFAULT_SCOPE__;
+    item = scope?.["webapp.reflow.video.detail"]?.itemInfo?.itemStruct ?? scope?.["webapp.video-detail"]?.itemInfo?.itemStruct;
   } catch { return null; }
   if (!item) return null;
   const imageUrls = (item.imagePost?.images ?? [])
     .map((i) => i.imageURL?.urlList?.find((u) => /^https:\/\//.test(u)))
     .filter((u): u is string => !!u)
     .slice(0, maxImages);
-  return { caption: (item.desc ?? "").trim(), author: item.author?.nickname || item.author?.uniqueId || null, imageUrls };
+  const v = item.video?.playAddr || item.video?.downloadAddr || "";
+  const videoUrl = !imageUrls.length && /^https:\/\//.test(v) ? v : null;
+  return { caption: (item.desc ?? "").trim(), author: item.author?.nickname || item.author?.uniqueId || null, imageUrls, videoUrl };
 }

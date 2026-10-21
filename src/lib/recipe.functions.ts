@@ -190,6 +190,23 @@ async function textFromUrl(url: string, images?: string[], apiKey?: string): Pro
             return `TikTok photo post by ${post.author ?? "creator"} with ${ok.length} photos (attached in order). Read the ingredients, amounts, servings and steps written on the photos.\nCaption:\n${post.caption}`;
           }
         }
+        if (post.videoUrl && apiKey) {
+          try {
+            const cookie = (page.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; ");
+            const v = await fetch(post.videoUrl, { headers: { "User-Agent": mobileUA, Referer: "https://www.tiktok.com/", ...(cookie ? { Cookie: cookie } : {}) } });
+            if (v.ok && (v.headers.get("content-type") ?? "").startsWith("video/")) {
+              const bytes = new Uint8Array(await v.arrayBuffer());
+              if (bytes.length <= 25 * 1024 * 1024) {
+                let bin = "";
+                for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+                const text = await readVideoDataUrl(apiKey, `data:video/mp4;base64,${btoa(bin)}`);
+                if (text && text !== "NO_RECIPE") return `TikTok video by ${post.author ?? "creator"}.\nVideo transcription:\n${text}\n\nCaption:\n${post.caption}`;
+              }
+            } else await v.body?.cancel();
+          } catch (e) {
+            if (e instanceof Error && /credits|Too many requests/.test(e.message)) throw e;
+          }
+        }
         if (hasRecipeCaption(post.caption)) return `TikTok caption by ${post.author ?? "creator"}:\n${post.caption}`;
       } catch { /* try the next route */ }
     }
