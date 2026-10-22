@@ -24,3 +24,6 @@
 - [x] Healthier-version badges: same-ingredient amount changes read "Decreased/Increased by X g or ml"; real swaps keep "Changed · was: …"
 
 - [x] Treat "to taste" / unquantified ingredients as optional; let the user add grams and update kcal and shopping from that amount (verified on the pho import; AI-gateway import check blocked later by 402 credits)
+
+- [ ] Sign in / create account screen with Skip option
+- [ ] Save recipes and reopen them quickly
